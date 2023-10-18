@@ -1,6 +1,6 @@
 /*
  *   Pleiades Source Code
- *   Copyright (C) 2023 Sienna Lloyd
+ *   Copyright (C) 2023 Sienna Lloyd, Pleiades Authors
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -15,5 +15,4 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>
  */
-
-mod hlc;
+mod memory;

@@ -49,6 +49,6 @@ pub struct Root {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Run a local server node
+    /// Run a local runtime node
     Server(ServerConfig)
 }

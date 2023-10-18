@@ -20,7 +20,7 @@ use std::ffi::OsString;
 use clap::Parser;
 
 #[derive(Parser, Debug)]
-#[command(name = "server")]
+#[command(name = "runtime")]
 pub struct ServerConfig {
     /// Port to run this node on. It must be the same for all nodes in the cluster
     #[arg(short, long, default_value = "8080")]
