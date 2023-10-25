@@ -23,10 +23,10 @@
 use std::{collections::VecDeque, mem};
 
 use protobuf::Message as PbMessage;
-use raft_proto::ConfChangeI;
+use nova_api::ConfChangeI;
 use slog::Logger;
 
-use crate::eraftpb::{ConfState, Entry, EntryType, HardState, Message, MessageType, Snapshot};
+use nova_api::raft::v1::{ConfState, Entry, EntryType, HardState, Message, MessageType, Snapshot};
 use crate::errors::{Error, Result};
 use crate::read_only::ReadState;
 use crate::{config::Config, StateRole};
@@ -797,7 +797,7 @@ impl<T: Storage> RawNode<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::eraftpb::MessageType;
+    use nova_api::raft::v1::MessageType;
 
     use super::is_local_msg;
 

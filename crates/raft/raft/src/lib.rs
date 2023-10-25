@@ -22,7 +22,7 @@ You can use [`RawNode::new`] to create the Raft node. To create the Raft node, y
 provide a [`Storage`] component, and a [`Config`] to the [`RawNode::new`] function.
 
 ```rust
-use raft::{
+use nova_raft::{
     Config,
     storage::MemStorage,
     raw_node::RawNode,
@@ -53,7 +53,7 @@ channel `recv_timeout` to drive the Raft node at least every 100ms, calling
 
 ```rust
 # use slog::{Drain, o};
-# use raft::{Config, storage::MemStorage, raw_node::RawNode};
+# use nova_raft::{Config, storage::MemStorage, raw_node::RawNode};
 # let config = Config { id: 1, ..Default::default() };
 # let store = MemStorage::new_with_conf_state((vec![1], vec![]));
 # let logger = slog::Logger::root(slog_stdlog::StdLog.fuse(), o!());
@@ -113,7 +113,8 @@ You can call the `step` function when you receive the Raft messages from other n
 Here is a simple example to use `propose` and `step`:
 
 ```rust
-# use raft::{Config, storage::MemStorage, raw_node::RawNode, eraftpb::Message};
+# use nova_raft::{Config, storage::MemStorage, raw_node::RawNode};
+# use nova_api::raft::v1::Message;
 # use std::{
 #     sync::mpsc::{channel, RecvTimeoutError},
 #     time::{Instant, Duration},
@@ -181,7 +182,7 @@ state:
 
 ```rust
 # use slog::{Drain, o};
-# use raft::{Config, storage::MemStorage, raw_node::RawNode};
+# use nova_raft::{Config, storage::MemStorage, raw_node::RawNode};
 #
 # let config = Config { id: 1, ..Default::default() };
 # config.validate().unwrap();
@@ -205,7 +206,7 @@ other nodes:
 
     ```rust
     # use slog::{Drain, o};
-    # use raft::{Config, storage::MemStorage, raw_node::RawNode, StateRole};
+    # use nova_raft::{Config, storage::MemStorage, raw_node::RawNode, StateRole};
     #
     # let config = Config { id: 1, ..Default::default() };
     # config.validate().unwrap();
@@ -230,7 +231,7 @@ a Raft snapshot from the leader and we must apply the snapshot:
 
     ```rust
     # use slog::{Drain, o};
-    # use raft::{Config, storage::MemStorage, raw_node::RawNode};
+    # use nova_raft::{Config, storage::MemStorage, raw_node::RawNode};
     #
     # let config = Config { id: 1, ..Default::default() };
     # config.validate().unwrap();
@@ -259,7 +260,8 @@ need to update the applied index and resume `apply` later:
 
     ```rust
     # use slog::{Drain, o};
-    # use raft::{Config, storage::MemStorage, raw_node::RawNode, eraftpb::EntryType};
+    # use nova_raft::{Config, storage::MemStorage, raw_node::RawNode};
+    # use nova_api::raft::v1::{Entry, EntryType};
     #
     # let config = Config { id: 1, ..Default::default() };
     # config.validate().unwrap();
@@ -272,13 +274,13 @@ need to update the applied index and resume `apply` later:
     # }
     # let mut ready = node.ready();
     #
-    # fn handle_conf_change(e:  raft::eraftpb::Entry) {
+    # fn handle_conf_change(e:  Entry) {
     # }
     #
-    # fn handle_conf_change_v2(e:  raft::eraftpb::Entry) {
+    # fn handle_conf_change_v2(e:  Entry) {
     # }
     #
-    # fn handle_normal(e:  raft::eraftpb::Entry) {
+    # fn handle_normal(e:  Entry) {
     # }
     #
     let mut _last_apply_index = 0;
@@ -314,7 +316,7 @@ entries but have not been committed yet, we must append the entries to the Raft 
 
     ```rust
     # use slog::{Drain, o};
-    # use raft::{Config, storage::MemStorage, raw_node::RawNode};
+    # use nova_raft::{Config, storage::MemStorage, raw_node::RawNode};
     #
     # let config = Config { id: 1, ..Default::default() };
     # config.validate().unwrap();
@@ -340,7 +342,7 @@ We must persist the changed `HardState`:
 
     ```rust
     # use slog::{Drain, o};
-    # use raft::{Config, storage::MemStorage, raw_node::RawNode};
+    # use nova_raft::{Config, storage::MemStorage, raw_node::RawNode};
     #
     # let config = Config { id: 1, ..Default::default() };
     # config.validate().unwrap();
@@ -364,7 +366,7 @@ other nodes after persisting hardstate, entries and snapshot:
 
     ```rust
     # use slog::{Drain, o};
-    # use raft::{Config, storage::MemStorage, raw_node::RawNode, StateRole};
+    # use nova_raft::{Config, storage::MemStorage, raw_node::RawNode, StateRole};
     #
     # let config = Config { id: 1, ..Default::default() };
     # config.validate().unwrap();
@@ -390,8 +392,8 @@ to advance the applied index inside.
 
     ```rust
     # use slog::{Drain, o};
-    # use raft::{Config, storage::MemStorage, raw_node::RawNode};
-    # use raft::eraftpb::{EntryType, Entry, Message};
+    # use nova_raft::{Config, storage::MemStorage, raw_node::RawNode};
+    # use nova_api::raft::v1::{EntryType, Entry, Message};
     #
     # let config = Config { id: 1, ..Default::default() };
     # config.validate().unwrap();
@@ -447,7 +449,8 @@ the following:
 
 For example to promote a learner 4 and demote an existing voter 3:
 ```no_run
-# use raft::{Config, storage::MemStorage, raw_node::RawNode, eraftpb::*};
+# use nova_raft::{Config, storage::MemStorage, raw_node::RawNode};
+# use nova_api::raft::v1::*;
 # use protobuf::Message as PbMessage;
 # use slog::{Drain, o};
 #
@@ -456,8 +459,8 @@ For example to promote a learner 4 and demote an existing voter 3:
 # let logger = slog::Logger::root(slog_stdlog::StdLog.fuse(), o!());
 # let mut node = RawNode::new(&mut config, store, &logger).unwrap();
 let steps = vec![
-    raft_proto::new_conf_change_single(4, ConfChangeType::AddNode),
-    raft_proto::new_conf_change_single(3, ConfChangeType::RemoveNode),
+    nova_api::new_conf_change_single(4, ConfChangeType::AddNode),
+    nova_api::new_conf_change_single(3, ConfChangeType::RemoveNode),
 ];
 let mut cc = ConfChangeV2::default();
 cc.set_changes(steps.into());
@@ -527,7 +530,7 @@ pub use log_unstable::Unstable;
 pub use quorum::joint::Configuration as JointConfig;
 pub use quorum::majority::Configuration as MajorityConfig;
 pub use raft_log::{RaftLog, NO_LIMIT};
-pub use raft_proto::eraftpb;
+pub use nova_api::*;
 #[allow(deprecated)]
 pub use raw_node::is_empty_snap;
 pub use raw_node::{LightReady, Peer, RawNode, Ready, SnapshotStatus};
@@ -545,12 +548,12 @@ pub mod prelude {
     //! library's prelude you'll have to do so manually:
     //!
     //! ```
-    //! use raft::prelude::*;
+    //! use nova_raft::prelude::*;
     //! ```
     //!
     //! The prelude may grow over time as additional items see ubiquitous use.
 
-    pub use raft_proto::prelude::*;
+    pub use nova_api::raft::v1::*;
 
     pub use crate::config::Config;
     pub use crate::raft::Raft;

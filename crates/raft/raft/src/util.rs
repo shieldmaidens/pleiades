@@ -9,7 +9,7 @@ use std::u64;
 
 use slog::{OwnedKVList, Record, KV};
 
-use crate::eraftpb::{Entry, Message};
+use nova_api::raft::v1::{ConfChangeSingle, ConfChangeType, ConfState, Entry, Message};
 use crate::HashSet;
 use protobuf::Message as PbMessage;
 
@@ -24,7 +24,8 @@ pub const NO_LIMIT: u64 = u64::MAX;
 /// # Examples
 ///
 /// ```
-/// use raft::{util::limit_size, prelude::*};
+/// use nova_raft::{util::limit_size, prelude::*};
+/// use nova_api::raft::v1::Entry;
 ///
 /// let template = {
 ///     let mut entry = Entry::default();
@@ -176,4 +177,92 @@ pub fn entry_approximate_size(e: &Entry) -> usize {
     // tag(5) + entry_type(1) + term(1) + index(2) + data(1) + context(1) = 11.
     // We choose 12 in case of large index or large data for normal entry.
     e.data.len() + e.context.len() + 12
+}
+
+/// Parses a Space-delimited sequence of operations into a slice of ConfChangeSingle.
+/// The supported operations are:
+/// - vn: make n a voter,
+/// - ln: make n a learner,
+/// - rn: remove n
+pub fn parse_conf_change(s: &str) -> Result<Vec<ConfChangeSingle>, String> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut ccs = vec![];
+    let splits = s.split_ascii_whitespace();
+    for tok in splits {
+        if tok.len() < 2 {
+            return Err(format!("unknown token {}", tok));
+        }
+        let mut cc = ConfChangeSingle::default();
+        let mut chars = tok.chars();
+        cc.set_change_type(match chars.next().unwrap() {
+            'v' => ConfChangeType::AddNode,
+            'l' => ConfChangeType::AddLearnerNode,
+            'r' => ConfChangeType::RemoveNode,
+            _ => return Err(format!("unknown token {}", tok)),
+        });
+        cc.node_id = match chars.as_str().parse() {
+            Ok(id) => id,
+            Err(e) => return Err(format!("parse token {} fail: {}", tok, e)),
+        };
+        ccs.push(cc);
+    }
+    Ok(ccs)
+}
+
+/// The inverse to `parse_conf_change`.
+pub fn stringify_conf_change(ccs: &[ConfChangeSingle]) -> String {
+    let mut s = String::new();
+    for (i, cc) in ccs.iter().enumerate() {
+        if i > 0 {
+            s.push(' ');
+        }
+        match cc.get_change_type() {
+            ConfChangeType::AddNode => s.push('v'),
+            ConfChangeType::AddLearnerNode => s.push('l'),
+            ConfChangeType::RemoveNode => s.push('r'),
+        }
+        write!(&mut s, "{}", cc.node_id).unwrap();
+    }
+    s
+}
+
+
+fn eq_without_order(lhs: &[u64], rhs: &[u64]) -> bool {
+    for l in lhs {
+        if !rhs.contains(l) {
+            return false;
+        }
+    }
+    for r in rhs {
+        if !lhs.contains(r) {
+            return false;
+        }
+    }
+    true
+}
+
+/// Returns true if the inputs describe the same configuration.
+#[must_use]
+pub fn conf_state_eq(lhs: &ConfState, rhs: &ConfState) -> bool {
+    // The orders are different only when hash algorithm or insert orders are
+    // different. In most case, only one hash algorithm is used. Insert orders
+    // should be the same due to the raft protocol. So in most case, they can
+    // be compared directly.
+    if lhs.get_voters() == rhs.get_voters()
+        && lhs.get_learners() == rhs.get_learners()
+        && lhs.get_voters_outgoing() == rhs.get_voters_outgoing()
+        && lhs.get_learners_next() == rhs.get_learners_next()
+        && lhs.auto_leave == rhs.auto_leave
+    {
+        return true;
+    }
+
+    eq_without_order(lhs.get_voters(), rhs.get_voters())
+        && eq_without_order(lhs.get_learners(), rhs.get_learners())
+        && eq_without_order(lhs.get_voters_outgoing(), rhs.get_voters_outgoing())
+        && eq_without_order(lhs.get_learners_next(), rhs.get_learners_next())
+        && lhs.auto_leave == rhs.auto_leave
 }

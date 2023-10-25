@@ -4,7 +4,7 @@
 #![allow(dead_code)]
 
 use super::changer::Changer;
-use crate::eraftpb::{ConfChangeSingle, ConfChangeType, ConfState};
+use nova_api::raft::v1::{ConfChangeSingle, ConfChangeType, ConfState};
 use crate::tracker::ProgressTracker;
 use crate::Result;
 
@@ -44,7 +44,7 @@ fn to_conf_change_single(cs: &ConfState) -> (Vec<ConfChangeSingle>, Vec<ConfChan
     for id in cs.get_voters_outgoing() {
         // If there are outgoing voters, first add them one by one so that the
         // (non-joint) config has them all.
-        outgoing.push(raft_proto::new_conf_change_single(
+        outgoing.push(nova_api::new_conf_change_single(
             *id,
             ConfChangeType::AddNode,
         ));
@@ -55,20 +55,20 @@ fn to_conf_change_single(cs: &ConfState) -> (Vec<ConfChangeSingle>, Vec<ConfChan
 
     // First, we'll remove all of the outgoing voters.
     for id in cs.get_voters_outgoing() {
-        incoming.push(raft_proto::new_conf_change_single(
+        incoming.push(nova_api::new_conf_change_single(
             *id,
             ConfChangeType::RemoveNode,
         ));
     }
     // Then we'll add the incoming voters and learners.
     for id in cs.get_voters() {
-        incoming.push(raft_proto::new_conf_change_single(
+        incoming.push(nova_api::new_conf_change_single(
             *id,
             ConfChangeType::AddNode,
         ));
     }
     for id in cs.get_learners() {
-        incoming.push(raft_proto::new_conf_change_single(
+        incoming.push(nova_api::new_conf_change_single(
             *id,
             ConfChangeType::AddLearnerNode,
         ));
@@ -76,7 +76,7 @@ fn to_conf_change_single(cs: &ConfState) -> (Vec<ConfChangeSingle>, Vec<ConfChan
     // Same for LearnersNext; these are nodes we want to be learners but which
     // are currently voters in the outgoing config.
     for id in cs.get_learners_next() {
-        incoming.push(raft_proto::new_conf_change_single(
+        incoming.push(nova_api::new_conf_change_single(
             *id,
             ConfChangeType::AddLearnerNode,
         ));

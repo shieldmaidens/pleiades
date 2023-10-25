@@ -12,16 +12,14 @@ categories = []
 edition = "2018"
 
 [features]
-default = ["protobuf-codec", "raft/default-logger"]
+default = ["nova-raft/default-logger"]
 # Enable failpoints
 failpoints = ["fail/failpoints"]
-protobuf-codec = ["raft/protobuf-codec"]
-prost-codec = ["raft/prost-codec"]
 
 # Make sure to synchronize updates with Raft.
 [dependencies]
-raft = { path = "..", default-features = false }
-raft-proto = { path = "../proto", default-features = false }
+nova-raft = { path = "..", default-features = false }
+nova-api = { path = "../proto", default-features = false }
 fail = { version = "0.4", optional = true }
 rand = "0.8"
 slog = "2.2"

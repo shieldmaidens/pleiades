@@ -23,7 +23,7 @@ pub use self::progress::Progress;
 pub use self::state::ProgressState;
 
 use crate::confchange::{MapChange, MapChangeType};
-use crate::eraftpb::ConfState;
+use nova_api::raft::v1::ConfState;
 use crate::quorum::{AckedIndexer, Index, VoteResult};
 use crate::{DefaultHashBuilder, HashMap, HashSet, JointConfig};
 use getset::Getters;

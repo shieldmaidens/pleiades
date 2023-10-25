@@ -18,12 +18,12 @@ use std::cmp;
 use std::convert::TryFrom;
 use std::ops::{Deref, DerefMut};
 
-use crate::eraftpb::{
+use nova_api::raft::v1::{
     ConfChange, ConfChangeV2, ConfState, Entry, EntryType, HardState, Message, MessageType,
     Snapshot,
 };
 use protobuf::Message as _;
-use raft_proto::ConfChangeI;
+use nova_api::ConfChangeI;
 use rand::{self, Rng};
 use slog::{self, Logger};
 
@@ -37,10 +37,10 @@ use super::raft_log::RaftLog;
 use super::read_only::{ReadOnly, ReadOnlyOption, ReadState};
 use super::storage::{GetEntriesContext, GetEntriesFor, Storage};
 use super::Config;
-use crate::confchange::Changer;
+use crate::confchange::{Changer, enter_joint, leave_joint};
 use crate::quorum::VoteResult;
 use crate::util;
-use crate::util::NO_LIMIT;
+use crate::util::{conf_state_eq, NO_LIMIT};
 use crate::{confchange, Progress, ProgressState, ProgressTracker};
 
 // CAMPAIGN_PRE_ELECTION represents the first phase of a normal election when
@@ -368,7 +368,7 @@ impl<T: Storage> Raft<T> {
         };
         confchange::restore(&mut r.prs, r.r.raft_log.last_index(), conf_state)?;
         let new_cs = r.post_conf_change();
-        if !raft_proto::conf_state_eq(&new_cs, conf_state) {
+        if !conf_state_eq(&new_cs, conf_state) {
             fatal!(
                 r.logger,
                 "invalid restore: {:?} != {:?}",
@@ -2631,7 +2631,7 @@ impl<T: Storage> Raft<T> {
             .unwrap()
             .get_metadata()
             .get_conf_state();
-        if !raft_proto::conf_state_eq(cs, &new_cs) {
+        if !conf_state_eq(cs, &new_cs) {
             fatal!(self.logger, "invalid restore: {:?} != {:?}", cs, new_cs);
         }
 
@@ -2749,9 +2749,9 @@ impl<T: Storage> Raft<T> {
     #[doc(hidden)]
     pub fn apply_conf_change(&mut self, cc: &ConfChangeV2) -> Result<ConfState> {
         let mut changer = Changer::new(&self.prs);
-        let (cfg, changes) = if cc.leave_joint() {
+        let (cfg, changes) = if leave_joint(cc) {
             changer.leave_joint()?
-        } else if let Some(auto_leave) = cc.enter_joint() {
+        } else if let Some(auto_leave) = enter_joint(cc) {
             changer.enter_joint(auto_leave, &cc.changes)?
         } else {
             changer.simple(&cc.changes)?

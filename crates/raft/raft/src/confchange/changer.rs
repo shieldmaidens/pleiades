@@ -1,6 +1,6 @@
 // Copyright 2020 TiKV Project Authors. Licensed under Apache-2.0.
 
-use crate::eraftpb::{ConfChangeSingle, ConfChangeType};
+use nova_api::raft::v1::{ConfChangeSingle, ConfChangeType};
 use crate::tracker::{Configuration, ProgressMap, ProgressTracker};
 use crate::{Error, Result};
 

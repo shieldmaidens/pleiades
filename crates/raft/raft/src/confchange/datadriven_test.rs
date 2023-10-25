@@ -3,7 +3,7 @@ use std::fmt::Write;
 use crate::{default_logger, Changer, ProgressTracker};
 use datadriven::{run_test, walk};
 use itertools::Itertools;
-use raft_proto::parse_conf_change;
+use crate::util::parse_conf_change;
 
 #[test]
 fn test_conf_change_data_driven() -> anyhow::Result<()> {

@@ -18,7 +18,7 @@ use std::collections::VecDeque;
 
 use slog::Logger;
 
-use crate::eraftpb::Message;
+use nova_api::raft::v1::Message;
 use crate::{HashMap, HashSet};
 
 /// Determines the relative safety of and consistency of read only requests.

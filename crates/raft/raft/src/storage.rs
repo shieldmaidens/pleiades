@@ -23,7 +23,7 @@
 use std::cmp;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::eraftpb::*;
+use nova_api::raft::v1::*;
 
 use crate::errors::{Error, Result, StorageError};
 use crate::util::limit_size;
@@ -525,7 +525,7 @@ mod test {
 
     use protobuf::Message as PbMessage;
 
-    use crate::eraftpb::{ConfState, Entry, Snapshot};
+    use nova_api::raft::v1::{ConfState, Entry, Snapshot};
     use crate::errors::{Error as RaftError, StorageError};
 
     use super::{GetEntriesContext, MemStorage, Storage};

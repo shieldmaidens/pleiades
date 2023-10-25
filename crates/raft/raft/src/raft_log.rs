@@ -19,7 +19,7 @@ use std::cmp;
 use slog::warn;
 use slog::Logger;
 
-use crate::eraftpb::{Entry, Snapshot};
+use nova_api::raft::v1::{Entry, Snapshot};
 use crate::errors::{Error, Result, StorageError};
 use crate::log_unstable::Unstable;
 use crate::storage::{GetEntriesContext, GetEntriesFor, Storage};
@@ -703,25 +703,25 @@ mod test {
     };
 
     use crate::default_logger;
-    use crate::eraftpb;
+    use nova_api::raft::v1::{Entry,SnapshotMetadata,Snapshot};
     use crate::errors::{Error, StorageError};
     use crate::raft_log::{self, RaftLog};
     use crate::storage::{GetEntriesContext, MemStorage};
     use crate::NO_LIMIT;
     use protobuf::Message as PbMessage;
 
-    fn new_entry(index: u64, term: u64) -> eraftpb::Entry {
-        let mut e = eraftpb::Entry::default();
+    fn new_entry(index: u64, term: u64) -> Entry {
+        let mut e = Entry::default();
         e.term = term;
         e.index = index;
         e
     }
 
-    fn new_snapshot(meta_index: u64, meta_term: u64) -> eraftpb::Snapshot {
-        let mut meta = eraftpb::SnapshotMetadata::default();
+    fn new_snapshot(meta_index: u64, meta_term: u64) -> Snapshot {
+        let mut meta = SnapshotMetadata::default();
         meta.index = meta_index;
         meta.term = meta_term;
-        let mut snapshot = eraftpb::Snapshot::default();
+        let mut snapshot = Snapshot::default();
         snapshot.set_metadata(meta);
         snapshot
     }
@@ -1319,7 +1319,7 @@ mod test {
         }
     }
 
-    fn ents_size(ents: &[eraftpb::Entry]) -> u64 {
+    fn ents_size(ents: &[Entry]) -> u64 {
         let mut size = 0;
         for ent in ents {
             size += ent.compute_size() as u64;

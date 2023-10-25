@@ -5,8 +5,8 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use criterion::{BatchSize, Bencher, BenchmarkId, Criterion, Throughput};
-use raft::eraftpb::{ConfState, Entry, Message, Snapshot, SnapshotMetadata};
-use raft::{storage::MemStorage, Config, RawNode};
+use nova_api::raft::v1::{ConfState, Entry, Message, Snapshot, SnapshotMetadata};
+use nova_raft::{storage::MemStorage, Config, RawNode};
 use std::time::Duration;
 
 pub fn bench_raw_node(c: &mut Criterion) {
@@ -25,7 +25,7 @@ fn quick_raw_node(logger: &slog::Logger) -> RawNode<MemStorage> {
 
 pub fn bench_raw_node_new(c: &mut Criterion) {
     let bench = |b: &mut Bencher| {
-        let logger = raft::default_logger();
+        let logger = nova_raft::default_logger();
         b.iter(|| quick_raw_node(&logger));
     };
 
@@ -64,7 +64,7 @@ pub fn bench_raw_node_leader_propose(c: &mut Criterion) {
                 BenchmarkId::from_parameter(size),
                 &size,
                 |b: &mut Bencher, size| {
-                    let logger = raft::default_logger();
+                    let logger = nova_raft::default_logger();
                     let mut node = quick_raw_node(&logger);
                     node.raft.become_candidate();
                     node.raft.become_leader();
@@ -79,7 +79,7 @@ pub fn bench_raw_node_leader_propose(c: &mut Criterion) {
 }
 
 pub fn bench_raw_node_new_ready(c: &mut Criterion) {
-    let logger = raft::default_logger();
+    let logger = nova_raft::default_logger();
     let mut group = c.benchmark_group("RawNode::ready");
     group
         // TODO: The proper measurement time could be affected by the system and machine.

@@ -6,9 +6,9 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use raft::eraftpb::ConfState;
-use raft::prelude::*;
-use raft::storage::MemStorage;
+use nova_api::raft::v1::ConfState;
+use nova_raft::prelude::*;
+use nova_raft::storage::MemStorage;
 
 use slog::{info, o};
 

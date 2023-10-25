@@ -16,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::eraftpb::{Entry, Snapshot};
+use nova_api::raft::v1::{Entry, Snapshot};
 use crate::util::entry_approximate_size;
 use slog::Logger;
 
@@ -212,7 +212,7 @@ impl Unstable {
 
 #[cfg(test)]
 mod test {
-    use crate::eraftpb::{Entry, Snapshot, SnapshotMetadata};
+    use nova_api::raft::v1::{Entry, Snapshot, SnapshotMetadata};
     use crate::log_unstable::Unstable;
     use crate::util::entry_approximate_size;
 

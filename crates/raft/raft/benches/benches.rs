@@ -5,6 +5,10 @@
 
 use criterion::Criterion;
 use std::time::Duration;
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 mod suites;
 
