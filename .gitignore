@@ -22,4 +22,5 @@ google/
 node_modules/
 package-lock.json
 report.xml
+target/
 vendor/

@@ -1,12 +1,16 @@
 [package]
 name = "pleiades"
 version = "3.0.0-alpha"
-authors = ["Sienna Lloyd"]
+authors = ["Sienna Lloyd <sienna@r3t.io>", "Pleiades Authors"]
 description = "A lightning-fast constellation mesh"
 license = "GPL-3.0-only"
 keywords = ["kv", "distributed-systems", "raft", "constellation", "mesh"]
-homepage = "https://github.com/mxplusb/pleiades"
-repository = "https://github.com/mxplusb/pleiades"
+homepage = "https://review.r3t.io/nova/pleiades"
+repository = "https://review.r3t.io/nova/pleiades"
 readme = "README.md"
 edition = "2021"
 publish = false
+
+[dependencies]
+moka = { version = "0.12.1", features = ["sync"] }
+sysinfo = "0.29.10"
