@@ -1,0 +1,61 @@
+[package]
+name = "nova-raft"
+version = "0.7.0"
+authors = ["The TiKV Project Developers", "Sienna Lloyd <sienna@r3t.io>"]
+license = "Apache-2.0"
+keywords = ["raft", "distributed-systems", "ha"]
+repository = "https://review.r3t.io/nova/raft"
+readme = "README.md"
+homepage = "https://nova-engine.io"
+documentation = "https://wiki.r3t.io"
+description = "The rust language implementation of Raft algorithm."
+categories = ["algorithms", "database-implementations"]
+edition = "2021"
+
+[workspace]
+members = ["proto", "harness", "datadriven"]
+
+[features]
+default = ["default-logger"]
+# Enable failpoints
+failpoints = ["fail/failpoints"]
+default-logger = ["slog-stdlog", "slog-envlogger", "slog-term"]
+
+# Make sure to synchronize updates with Harness.
+[dependencies]
+bytes = { version = "1", optional = true }
+fxhash = "0.2.1"
+fail = { version = "0.4", optional = true }
+getset = "0.1.1"
+protobuf = "2"
+thiserror = "1.0"
+nova-api = { path = "proto" }
+rand = "0.8"
+slog = "2.2"
+slog-envlogger = { version = "2.1.0", optional = true }
+slog-stdlog = { version = "4", optional = true }
+slog-term = { version = "2.4.0", optional = true }
+mimalloc = { version = "*", default-features = false }
+
+[dev-dependencies]
+criterion = "0.3"
+regex = "1"
+slog-async = "2.3.0"
+slog-envlogger = "2.1.0"
+slog-stdlog = "4"
+slog-term = "2.4.0"
+anyhow = "1.0.40"
+datadriven = { path = "datadriven", version = "0.1.0" }
+itertools = "0.10.0"
+
+[[bench]]
+name = "benches"
+harness = false
+
+[[example]]
+name = "single_mem_node"
+path = "examples/single_mem_node/main.rs"
+
+[[example]]
+name = "five_mem_node"
+path = "examples/five_mem_node/main.rs"
