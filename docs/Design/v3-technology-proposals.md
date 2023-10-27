@@ -16,8 +16,8 @@ tags:
   - tomography
   - viper
   - cobra
-  - raft
-  - multi-raft
+  - old
+  - multi-old
 ---
 Pleiades is a collection of different types, layers, and aspects of technologies that enable it to operate successfully. Right now, Pleiades is at v2 - it's already gone several early rewrites after validating assumptions, design patterns, etc. This doc describes technologies that are being targeted for the v3 rewrite.
 

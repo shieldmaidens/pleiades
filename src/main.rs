@@ -8,8 +8,12 @@
  */
 
 mod wts;
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() {
-    let wts_cache = wts::WriteThroughCache.new();
+    let wts_cache = wts::storage::WriteThroughStorage::new();
     println!("hello from boulder.");
 }

@@ -1,7 +1,7 @@
 [package]
 name = "pleiades"
 version = "3.0.0-alpha"
-authors = ["Sienna Lloyd <sienna@r3t.io>", "Pleiades Authors"]
+authors = ["Sienna Lloyd", "Pleiades Authors"]
 description = "A lightning-fast constellation mesh"
 license = "GPL-3.0-only"
 keywords = ["kv", "distributed-systems", "raft", "constellation", "mesh"]
@@ -11,6 +11,12 @@ readme = "README.md"
 edition = "2021"
 publish = false
 
+[workspace]
+members = ["crates/*"]
+
 [dependencies]
+mimalloc = { version = "*", default-features = false }
 moka = { version = "0.12.1", features = ["sync"] }
+nova-api = { version = "0.1.1" }
+nova-raft = { path = "crates/raft" }
 sysinfo = "0.29.10"
