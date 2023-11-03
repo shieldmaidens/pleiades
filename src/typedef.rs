@@ -16,13 +16,19 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use mimalloc::MiMalloc;
-use pleiades::wts::storage::{DEFAULT_DB_PATH, WriteThroughStorage};
+use openraft::StorageError;
 
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
+use nova_api::raft::v1::{RaftEntryRequest, RaftEntryResponse};
 
-fn main() {
-    let wts_cache = WriteThroughStorage::new(DEFAULT_DB_PATH.to_string());
-    println!("hello from boulder.");
-}
+use crate::network;
+
+pub type NodeId = u64;
+pub type StorageResult<T> = Result<T, StorageError<NodeId>>;
+
+openraft::declare_raft_types!(
+    pub ShardConfig:
+        D = RaftEntryRequest,
+        R = RaftEntryResponse,
+        NodeId = NodeId,
+        Node = network::HostNode
+);

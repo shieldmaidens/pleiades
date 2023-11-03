@@ -15,8 +15,13 @@ publish = false
 members = ["crates/*"]
 
 [dependencies]
+bytes = "1.5.0"
 mimalloc = { version = "*", default-features = false }
 moka = { version = "0.12.1", features = ["sync"] }
-nova-api = { version = "0.1.1" }
-nova-raft = { path = "crates/raft" }
+nova-api = { path = "crates/nova-api" }
+openraft = "0.8.3"
+prost = "0.12.1"
+protobuf = {version = "2" }
+rocksdb = { version = "0.21.0", features = ["multi-threaded-cf"] }
+serde = { version = "1.0.189", features = ["derive"] }
 sysinfo = "0.29.10"

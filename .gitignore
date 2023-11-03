@@ -13,14 +13,12 @@ bazel-pleiades
 bazel-testlogs
 bin/
 build/
+crates/nova-api
 ci/vars/**.sh
 ci/vars/**.yaml
 covprofile*
 docs/.obsidian/workspace.json
 docs/.obsidian/hotkeys.json
-google/
-node_modules/
-package-lock.json
 report.xml
 target/
 vendor/

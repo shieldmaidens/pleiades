@@ -16,13 +16,24 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use mimalloc::MiMalloc;
-use pleiades::wts::storage::{DEFAULT_DB_PATH, WriteThroughStorage};
+mod raft;
 
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
+/// Information about the host node.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct HostNode {
+    pub addr: String,
+}
 
-fn main() {
-    let wts_cache = WriteThroughStorage::new(DEFAULT_DB_PATH.to_string());
-    println!("hello from boulder.");
+impl HostNode {
+    pub fn new(addr: impl ToString) -> Self {
+        Self { addr: addr.to_string() }
+    }
+}
+
+impl Default for HostNode {
+    fn default() -> Self {
+        Self {
+            addr: "".to_string()
+        }
+    }
 }

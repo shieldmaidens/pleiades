@@ -17,4 +17,3 @@
  */
 
 pub mod storage;
-mod typedef;

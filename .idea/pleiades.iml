@@ -11,12 +11,21 @@
   </component>
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/crates/datadriven/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/harness/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/harness/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/kvtraits/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/raft/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/raft/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/raft/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/nova-api/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/bazel-bin" />
       <excludeFolder url="file://$MODULE_DIR$/bazel-out" />
       <excludeFolder url="file://$MODULE_DIR$/bazel-pleiades" />
       <excludeFolder url="file://$MODULE_DIR$/bazel-testlogs" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
+      <excludeFolder url="file://$MODULE_DIR$/crates/nova-api/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

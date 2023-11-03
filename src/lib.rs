@@ -16,13 +16,6 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use mimalloc::MiMalloc;
-use pleiades::wts::storage::{DEFAULT_DB_PATH, WriteThroughStorage};
-
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
-
-fn main() {
-    let wts_cache = WriteThroughStorage::new(DEFAULT_DB_PATH.to_string());
-    println!("hello from boulder.");
-}
+mod network;
+mod typedef;
+pub mod wts;
