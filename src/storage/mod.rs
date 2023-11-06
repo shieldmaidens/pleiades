@@ -16,11 +16,16 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::fmt::Error;
 use std::io;
+
 use prost::{DecodeError, EncodeError};
 use thiserror::Error;
 
+use nova_api::raft::v1::{ColumnFamilyDescriptor, KeyValuePair, MetaKeyValuePair};
+
 pub mod db;
+mod memcache;
 
 pub const DEFAULT_DB_PATH: &'static str = "/var/lib/pleiades/data";
 const COLUMN_FAMILY_DESCRIPTOR_KEY: &'static str = "column_family_descriptor";
@@ -45,4 +50,21 @@ pub enum StorageError {
     DiskEngineError(rocksdb::Error),
     #[error("io error, {0}")]
     IoError(io::Error),
+}
+
+// todo (sienna): I think the the results should be boxed, but I'm not sure. figure this out later
+pub trait MetaKeyValueStore {
+    /// Fetches a key from the local disk storage.
+    fn get(&self, key: &MetaKeyValuePair) -> Result<KeyValuePair, StorageError>;
+    /// Puts a key into the disk storage
+    fn put(&self, key: &MetaKeyValuePair) -> Result<(), StorageError>;
+    /// Deletes a key from the disk storage
+    fn delete(&self, key: &MetaKeyValuePair) -> Result<(), StorageError>;
+}
+
+pub trait ColumnFamilyEncoding {
+    /// Encodes a key value pair into a byte array
+    fn encode(&self, key: &ColumnFamilyDescriptor) -> String;
+    /// Decodes a string into a colum family descriptor
+    fn decode(&self, key: Vec<u8>) -> Result<ColumnFamilyDescriptor, Error>;
 }

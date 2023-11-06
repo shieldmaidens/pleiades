@@ -16,20 +16,21 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use nova_api::raft::v1::{RaftEntryRequest, RaftEntryResponse};
+use std::path::Path;
 
-use crate::network;
+pub const TEST_ROCKSDB_PATH: &str = "/tmp/pleiades/";
 
-pub type ShardId = u64;
-pub type NodeId = u64;
+pub fn clear_tmp_dir() -> Result<(), std::io::Error> {
 
-openraft::declare_raft_types!(
-    pub ShardConfig:
-        D = RaftEntryRequest,
-        R = RaftEntryResponse,
-        NodeId = NodeId,
-        Node = network::HostNode
-);
-
-pub const SYSTEM_SHARD_RANGE_START: ShardId = 1;
-pub const SYSTEM_SHARD_RANGE_STOP: ShardId = 100;
+    if Path::new(TEST_ROCKSDB_PATH).exists() {
+        match std::fs::remove_dir_all(TEST_ROCKSDB_PATH) {
+            Ok(_) => {}
+            Err(e) => return Err(e)
+        }
+        match std::fs::create_dir_all(TEST_ROCKSDB_PATH) {
+            Ok(_) => {}
+            Err(e) => return Err(e)
+        }
+    }
+    Ok(())
+}
