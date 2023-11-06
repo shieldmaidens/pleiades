@@ -17,12 +17,13 @@
  */
 
 use mimalloc::MiMalloc;
-use pleiades::wts::storage::{DEFAULT_DB_PATH, WriteThroughStorage};
+use pleiades::storage::DEFAULT_DB_PATH;
+use pleiades::storage::db::DiskStorage;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() {
-    let wts_cache = WriteThroughStorage::new(DEFAULT_DB_PATH.to_string());
+    let _wts_cache = DiskStorage::new(DEFAULT_DB_PATH.to_string());
     println!("hello from boulder.");
 }

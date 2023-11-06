@@ -24,11 +24,7 @@ pub struct HostNode {
     pub addr: String,
 }
 
-impl HostNode {
-    pub fn new(addr: impl ToString) -> Self {
-        Self { addr: addr.to_string() }
-    }
-}
+impl HostNode {}
 
 impl Default for HostNode {
     fn default() -> Self {
