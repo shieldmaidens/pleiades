@@ -39,15 +39,15 @@ struct RaftServer {}
 
 #[async_trait]
 impl RaftNetwork<ShardConfig> for RaftServer {
-    async fn send_append_entries(&mut self, rpc: AppendEntriesRequest<ShardConfig>) -> Result<AppendEntriesResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId>>> {
+    async fn send_append_entries(&mut self, _rpc: AppendEntriesRequest<ShardConfig>) -> Result<AppendEntriesResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId>>> {
         todo!()
     }
 
-    async fn send_install_snapshot(&mut self, rpc: InstallSnapshotRequest<ShardConfig>) -> Result<InstallSnapshotResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId, InstallSnapshotError>>> {
+    async fn send_install_snapshot(&mut self, _rpc: InstallSnapshotRequest<ShardConfig>) -> Result<InstallSnapshotResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId, InstallSnapshotError>>> {
         todo!()
     }
 
-    async fn send_vote(&mut self, rpc: VoteRequest<NodeId>) -> Result<VoteResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId>>> {
+    async fn send_vote(&mut self, _rpc: VoteRequest<NodeId>) -> Result<VoteResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId>>> {
         todo!()
     }
 }

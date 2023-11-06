@@ -16,14 +16,11 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use openraft::StorageError;
-
 use nova_api::raft::v1::{RaftEntryRequest, RaftEntryResponse};
 
 use crate::network;
 
 pub type NodeId = u64;
-pub type StorageResult<T> = Result<T, StorageError<NodeId>>;
 
 openraft::declare_raft_types!(
     pub ShardConfig:
