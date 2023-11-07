@@ -29,7 +29,9 @@ use nova_api::raft::v1::{KeyValuePair, MetaKeyValuePair};
 
 use crate::storage::{MetaKeyValueStore, StorageError};
 use crate::storage::db::DiskStorage;
-use crate::storage::StorageError::{MissingColumnFamily, MissingKeyValuePair};
+use crate::storage::MetaKeyValueStoreError::{DiskEngineError, GeneralError, IoError, KeyValuePairDecodeError, KeyValuePairEncodeError, MissingColumnFamily, MissingKeyValuePair};
+use crate::storage::MetaRaftLogStorageError::{MissingVote, ZeroLengthLeaderId, ZeroLengthVote};
+use crate::storage::StorageError::MetaKeyValueStoreError;
 use crate::typedef::{SYSTEM_SHARD_RANGE_START, SYSTEM_SHARD_RANGE_STOP};
 use crate::utils::math::between;
 
@@ -44,6 +46,7 @@ impl WriteBackCache {
     pub fn new(path: String) -> Self {
         let db = Arc::new(DiskStorage::new(path));
 
+        //region eviction lister
         // this is our eviction listener and will make sure that things are written back to disk
         // when expired/updated/over size, and deleted from disk when explicitly removed.
         let db_clone = db.clone();
@@ -56,14 +59,36 @@ impl WriteBackCache {
                     }
                 }
                 RemovalCause::Explicit => {
-                    // nb (sienna): if there is a missing key value pair, that means the database
-                    // can't find it, so we don't need to delete it.
                     match db_clone.delete(&value) {
                         Ok(_) => {}
                         Err(e) => match e {
-                            MissingColumnFamily(_) => {}
-                            MissingKeyValuePair => {}
-                            _ => panic!("failed to delete explicit metakeyvaluepair from disk, {}", e)
+                            // tags: data_loss_risk
+                            // nb (sienna): this is our absolute last change to ensure whatever was
+                            // handed to pleiades is stored persistently. these panics are here very
+                            // intentionally. if we hit these panics, there's a very important
+                            // logic error in the hot path that needs to be fixed IMMEDIATELY! if we
+                            // remove the panics, we risk data loss.
+
+                            StorageError::MissingShardId => panic!("failed to evict cache item due to missing shard, {}", e),
+                            StorageError::MetaKeyValueStoreError(kvse) => match kvse {
+                                MissingKeyValuePair => {} // do nothing because we couldn't find it
+                                GeneralError(ge) => panic!("failed to evict cache item due to general error, {}", ge),
+
+                                // between hardware ecc, linux, and rust, it's exceedingly unlikely
+                                // this is the case, but it's here just in case.
+                                KeyValuePairDecodeError(kvpd) => panic!("POSSIBLE DATA CORRUPTION: failed to evict cache item due to decode error, {}", kvpd),
+                                KeyValuePairEncodeError(kvpe) => panic!("POSSIBLE DATA CORRUPTION: failed to evict cache item due to encode error, {}", kvpe),
+
+                                MissingColumnFamily(mcf) => panic!("failed to evict cache item due to missing column family, {}", mcf),
+                                DiskEngineError(dee) => panic!("failed to evict cache item due to disk engine error, {}", dee),
+                                IoError(ioe) => panic!("failed to evict cache item due to io error, {}", ioe),
+                                _ZeroLengthKey => {}
+                            },
+                            StorageError::MetaRaftLogStorageError(rlse) => match rlse {
+                                MissingVote(mve) => panic!("failed to evict cache item due to missing vote, {}", mve),
+                                ZeroLengthVote => {}
+                                ZeroLengthLeaderId => {}
+                            },
                         }
                     }
                 }
@@ -81,6 +106,7 @@ impl WriteBackCache {
                 }
             }
         };
+        //endregion
 
         let cache = Cache::builder()
             .max_capacity(100_000)
@@ -139,7 +165,7 @@ impl MetaKeyValueStore for WriteBackCache {
         let key = &meta_key.kvp.clone().unwrap().key;
         let found_value = match self.data_cache.get(key) {
             Some(value) => match (*value).clone().kvp {
-                None => return Err(MissingKeyValuePair),
+                None => return Err(MetaKeyValueStoreError(MissingKeyValuePair)),
                 Some(v) => v,
             },
             None => {
@@ -168,21 +194,27 @@ impl MetaKeyValueStore for WriteBackCache {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-
     use rand::{Rng, RngCore};
+    use tempdir::TempDir;
 
     use nova_api::raft::v1::{KeyValuePair, MetaKeyValuePair};
 
     use crate::storage::{MetaKeyValueStore, StorageError};
     use crate::storage::memcache::WriteBackCache;
+    use crate::storage::MetaKeyValueStoreError::IoError;
+    use crate::storage::StorageError::MetaKeyValueStoreError;
 
     #[test]
     // nb (sienna): this test uses about 200MiB of disk space, but will clean it up afterwards
     fn put_and_get_and_delete() -> Result<(), StorageError> {
-        let temp_dir = env::temp_dir();
+        // clear the directory so we can write a new db, then open an existing one
+        let temp_dir = match TempDir::new("open_existing_column") {
+            Ok(v) => v,
+            Err(e) => return Err(MetaKeyValueStoreError(IoError(e)))
+        };
+        let db_path = temp_dir.path().to_str().unwrap().to_string();
 
-        let wbc = WriteBackCache::new(temp_dir.to_str().unwrap().to_string());
+        let wbc = WriteBackCache::new(db_path);
 
         const AMOUNT: u64 = 50_000;
 

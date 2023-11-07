@@ -33,17 +33,17 @@ use openraft::raft::{
 use openraft::RaftNetwork;
 
 use crate::network::HostNode;
-use crate::typedef::{NodeId, ShardConfig};
+use crate::typedef::{NodeId, RaftShardConfig};
 
 struct RaftServer {}
 
 #[async_trait]
-impl RaftNetwork<ShardConfig> for RaftServer {
-    async fn send_append_entries(&mut self, _rpc: AppendEntriesRequest<ShardConfig>) -> Result<AppendEntriesResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId>>> {
+impl RaftNetwork<RaftShardConfig> for RaftServer {
+    async fn send_append_entries(&mut self, _rpc: AppendEntriesRequest<RaftShardConfig>) -> Result<AppendEntriesResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId>>> {
         todo!()
     }
 
-    async fn send_install_snapshot(&mut self, _rpc: InstallSnapshotRequest<ShardConfig>) -> Result<InstallSnapshotResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId, InstallSnapshotError>>> {
+    async fn send_install_snapshot(&mut self, _rpc: InstallSnapshotRequest<RaftShardConfig>) -> Result<InstallSnapshotResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId, InstallSnapshotError>>> {
         todo!()
     }
 

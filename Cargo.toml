@@ -21,7 +21,7 @@ bytes = "1.5.0"
 mimalloc = { version = "*", default-features = false }
 moka = { version = "0.12.1", features = ["sync"] }
 nova-api = { path = "crates/nova-api" }
-openraft = "0.8.3"
+openraft = { git = "https://github.com/datafuselabs/openraft", branch = "main", features = ["storage-v2"] }
 prost = "0.12.1"
 protobuf = {version = "2" }
 rocksdb = { version = "0.21.0", features = ["multi-threaded-cf"] }
@@ -29,8 +29,14 @@ serde = { version = "1.0.189", features = ["derive"] }
 sysinfo = "0.29.10"
 thiserror = "1.0.50"
 rand = "0.8.5"
+tokio = "1.33.0"
+tempfile = "3.8.1"
 
 [dev-dependencies]
+criterion = "0.5.1"
 serial_test = "2.0.0"
 tempdir = "0.3.7"
 
+[[bench]]
+name = "data"
+harness = false
