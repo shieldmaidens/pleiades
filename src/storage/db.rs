@@ -17,11 +17,27 @@ use nova_api::raft::v1::{
     ColumnFamilies,
     ColumnFamilyDescriptor as nColumnFamilyDescriptor,
     KeyValuePair,
+    LogState,
     MetaKeyValuePair,
+    MetaLogId,
+    MetaVote,
+    Vote,
 };
 
-use crate::storage::{COLUMN_FAMILY_DESCRIPTOR_KEY, ColumnFamilyEncoding, DEFAULT_DB_PATH, MetaKeyValueStore, StorageError};
-use crate::storage::StorageError::*;
+use crate::storage::{
+    COLUMN_FAMILY_DESCRIPTOR_KEY,
+    ColumnFamilyEncoding,
+    DEFAULT_DB_PATH,
+    MetaKeyValueStore,
+    MetaRaftLogStorage,
+    StorageError,
+};
+use crate::storage::MetaKeyValueStoreError::*;
+use crate::storage::MetaRaftLogStorageError::{
+    MissingVote,
+    ZeroLengthVote,
+};
+use crate::storage::StorageError::{MetaKeyValueStoreError, MissingShardId};
 
 /// The default disk storage implementation in Pleiades. The underlying storage is provided by
 /// RocksDB.
@@ -47,7 +63,7 @@ impl DiskStorage {
         }
 
         if key.kvp.is_none() {
-            return Err(MissingKeyValuePair);
+            return Err(MetaKeyValueStoreError(MissingKeyValuePair));
         }
 
         // todo (sienna): figure out why this feels like an unnecessary clone. I shouldn't have to
@@ -55,38 +71,95 @@ impl DiskStorage {
         let kvp_bytes = key.kvp.clone().expect("the key value pair must exist").key;
 
         if kvp_bytes.is_empty() {
-            return Err(ZeroLengthKey);
+            return Err(MetaKeyValueStoreError(ZeroLengthKey));
         }
 
         let cf_handle = match self.db.cf_handle(&key.shard.to_string()) {
             None => if create_if_not_exists {
                 match self.create_cf(key.shard) {
                     Ok(v) => v,
-                    Err(_) => return Err(GeneralError("cannot create column family"))
+                    Err(_) => return Err(MetaKeyValueStoreError(GeneralError("cannot create column family")))
                 }
             } else {
-                return Err(MissingColumnFamily(key.shard));
+                return Err(MetaKeyValueStoreError(MissingColumnFamily(key.shard)));
             },
             Some(v) => v,
         };
 
         match key.kvp {
-            None => Err(MissingKeyValuePair),
+            None => Err(MetaKeyValueStoreError(MissingKeyValuePair)),
             Some(_) => Ok((key.kvp.clone().unwrap(), cf_handle))
         }
     }
 
-    /// Attempt tp create a column family for the shard, returns an error if it's not possible
+    fn metavote_unwinder(&self, vote: &MetaVote) -> Result<(Vote, Arc<BoundColumnFamily>), StorageError> {
+        if vote.shard_id == 0 {
+            return Err(MissingShardId);
+        }
+
+        if vote.vote.is_none() {
+            return Err(StorageError::MetaRaftLogStorageError(ZeroLengthVote));
+        }
+
+        // todo (sienna): figure out why this feels like an unnecessary clone. I shouldn't have to
+        // clone a nested struct just to check if there are values. rustism?
+        let v = vote.vote.clone().expect("the key value pair must exist");
+
+        if v.leader_id.is_none() {
+            return Err(StorageError::MetaRaftLogStorageError(ZeroLengthVote));
+        }
+
+        let cf_handle = match self.db.cf_handle(&vote.shard_id.to_string()) {
+            None => match self.create_cf(vote.shard_id) {
+                Ok(v) => v,
+                Err(_) => return Err(MetaKeyValueStoreError(GeneralError("cannot create column family")))
+            },
+            Some(v) => v,
+        };
+
+        match vote.vote {
+            None => Err(StorageError::MetaRaftLogStorageError(MissingVote(vote.shard_id))),
+            Some(_) => Ok((vote.vote.clone().unwrap(), cf_handle))
+        }
+    }
+
+    /// Attempt to create a column family for the shard, returns an error if it's not possible
     fn create_cf(&self, shard_id: u64) -> Result<Arc<BoundColumnFamily>, StorageError> {
         match self.db.create_cf(shard_id.to_string(), &Options::default()) {
             Ok(_) => {}
-            Err(e) => return Err(DiskEngineError(e))
+            Err(e) => return Err(MetaKeyValueStoreError(DiskEngineError(e)))
         };
 
         match self.db.cf_handle(&shard_id.to_string()) {
-            None => Err(GeneralError("cannot create column family")),
+            None => Err(MetaKeyValueStoreError(GeneralError("cannot create column family"))),
             Some(v) => Ok(v),
         }
+    }
+}
+
+impl MetaRaftLogStorage for DiskStorage {
+    fn get_log_state(&mut self) -> std::result::Result<LogState, StorageError> {
+        todo!()
+    }
+
+    fn save_vote(&self, vote: &MetaVote) -> std::result::Result<(), StorageError> {
+        todo!()
+    }
+
+    fn read_vote(&mut self) -> std::result::Result<Option<Vote>, StorageError> {
+        todo!()
+    }
+
+    fn append<I>(&mut self, entries: Vec<I>) -> std::result::Result<(), StorageError> {
+        todo!()
+    }
+
+    fn truncate(&mut self, log_id: &MetaLogId) -> std::result::Result<(), StorageError> {
+        todo!()
+    }
+
+    fn purge(&mut self, log_id: &MetaLogId) -> std::result::Result<(), StorageError> {
+        todo!()
     }
 }
 
@@ -97,16 +170,16 @@ impl MetaKeyValueStore for DiskStorage {
 
         let found_kvp = match self.db.get_cf(&cf_handle, kvp.key) {
             Ok(kvp_bytes) => match kvp_bytes {
-                None => return Err(MissingKeyValuePair),
+                None => return Err(MetaKeyValueStoreError(MissingKeyValuePair)),
                 Some(b) => {
                     let buf = Bytes::from(b);
                     match KeyValuePair::decode(buf) {
                         Ok(v) => v,
-                        Err(e) => return Err(KeyValuePairDecodeError(e))
+                        Err(e) => return Err(MetaKeyValueStoreError(KeyValuePairDecodeError(e)))
                     }
                 }
             }
-            Err(_) => return Err(MissingKeyValuePair)
+            Err(_) => return Err(MetaKeyValueStoreError(MissingKeyValuePair))
         };
 
         Ok(found_kvp)
@@ -118,18 +191,18 @@ impl MetaKeyValueStore for DiskStorage {
         let mut buf = vec![];
         match kvp.encode(&mut buf) {
             Ok(_) => {}
-            Err(e) => return Err(KeyValuePairEncodeError(e))
+            Err(e) => return Err(MetaKeyValueStoreError(KeyValuePairEncodeError(e)))
         }
 
         let tx = self.db.transaction();
         match tx.put_cf(&cf_handle, kvp.key, buf) {
             Ok(_) => {}
-            Err(e) => return Err(DiskEngineError(e))
+            Err(e) => return Err(MetaKeyValueStoreError(DiskEngineError(e)))
         };
 
         match tx.commit() {
             Ok(_) => {}
-            Err(e) => return Err(DiskEngineError(e))
+            Err(e) => return Err(MetaKeyValueStoreError(DiskEngineError(e)))
         };
 
         Ok(())
@@ -141,12 +214,12 @@ impl MetaKeyValueStore for DiskStorage {
         let tx = self.db.transaction();
         match tx.delete_cf(&cf_handle, kvp.key) {
             Ok(_) => {}
-            Err(e) => return Err(DiskEngineError(e))
+            Err(e) => return Err(MetaKeyValueStoreError(DiskEngineError(e)))
         };
 
         match tx.commit() {
             Ok(_) => Ok(()),
-            Err(e) => Err(DiskEngineError(e))
+            Err(e) => Err(MetaKeyValueStoreError(DiskEngineError(e)))
         }
     }
 }
@@ -244,8 +317,9 @@ mod test {
     use nova_api::raft::v1::{ColumnFamilies, ColumnFamilyDescriptor, KeyValuePair, MetaKeyValuePair};
     use nova_api::raft::v1::ColumnFamilyType::{Config, Data, RaftLog, Unspecified};
 
-    use crate::storage::{COLUMN_FAMILY_DESCRIPTOR_KEY, ColumnFamilyEncoding, MetaKeyValueStore, StorageError};
-    use crate::storage::StorageError::{DiskEngineError, IoError};
+    use crate::storage::{COLUMN_FAMILY_DESCRIPTOR_KEY, ColumnFamilyEncoding, MetaKeyValueStore,StorageError};
+    use crate::storage::MetaKeyValueStoreError::{DiskEngineError, IoError};
+    use crate::storage::StorageError::MetaKeyValueStoreError;
     use crate::utils::disk::{clear_tmp_dir, TEST_ROCKSDB_PATH};
 
     use super::{ColumnFamilyEncoder, DiskStorage};
@@ -254,7 +328,7 @@ mod test {
     fn open_blank_db() -> Result<(), StorageError> {
         let temp_dir = match TempDir::new("open_existing_column") {
             Ok(v) => v,
-            Err(e) => return Err(IoError(e))
+            Err(e) => return Err(MetaKeyValueStoreError(IoError(e)))
         };
         let db_path = temp_dir.path().to_str().unwrap().to_string();
 
@@ -269,7 +343,7 @@ mod test {
         // clear the directory so we can write a new db, then open an existing one
         let temp_dir = match TempDir::new("open_existing_column") {
             Ok(v) => v,
-            Err(e) => return Err(IoError(e))
+            Err(e) => return Err(MetaKeyValueStoreError(IoError(e)))
         };
         let db_path = temp_dir.path().to_str().unwrap().to_string();
 
@@ -300,7 +374,7 @@ mod test {
 
             match db.create_cf(ColumnFamilyEncoder::default().encode(&cfd), &opts) {
                 Ok(_) => {}
-                Err(e) => return Err(DiskEngineError(e))
+                Err(e) => return Err(MetaKeyValueStoreError(DiskEngineError(e)))
             }
             cfs.column_families.push(cfd);
         }
@@ -311,7 +385,7 @@ mod test {
 
         match db.put(COLUMN_FAMILY_DESCRIPTOR_KEY.as_bytes(), buf) {
             Ok(_) => {}
-            Err(e) => return Err(DiskEngineError(e))
+            Err(e) => return Err(MetaKeyValueStoreError(DiskEngineError(e)))
         }
 
         // close
@@ -333,7 +407,7 @@ mod test {
 
         match clear_tmp_dir() {
             Ok(_) => {}
-            Err(e) => return Err(IoError(e))
+            Err(e) => return Err(MetaKeyValueStoreError(IoError(e)))
         }
 
         let ds = DiskStorage::new(TEST_ROCKSDB_PATH.to_string());
@@ -379,7 +453,7 @@ mod test {
         // cleanup
         match clear_tmp_dir() {
             Ok(_) => Ok(()),
-            Err(e) => Err(IoError(e))
+            Err(e) => Err(MetaKeyValueStoreError(IoError(e)))
         }
     }
 }
