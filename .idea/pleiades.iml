@@ -20,6 +20,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/raft/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/nova-api/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/benches" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/bazel-bin" />
       <excludeFolder url="file://$MODULE_DIR$/bazel-out" />
       <excludeFolder url="file://$MODULE_DIR$/bazel-pleiades" />

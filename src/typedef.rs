@@ -16,6 +16,9 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::io::Cursor;
+use openraft::Entry;
+
 use nova_api::raft::v1::{RaftEntryRequest, RaftEntryResponse};
 
 use crate::network;
@@ -24,11 +27,14 @@ pub type ShardId = u64;
 pub type NodeId = u64;
 
 openraft::declare_raft_types!(
-    pub ShardConfig:
+    pub RaftShardConfig:
         D = RaftEntryRequest,
         R = RaftEntryResponse,
         NodeId = NodeId,
-        Node = network::HostNode
+        Node = network::HostNode,
+        Entry = Entry<RaftShardConfig>,
+        SnapshotData = Cursor<Vec<u8>>,
+        AsyncRuntime = openraft::TokioRuntime
 );
 
 pub const SYSTEM_SHARD_RANGE_START: ShardId = 1;

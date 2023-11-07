@@ -23,7 +23,8 @@ use pleiades::storage::db::DiskStorage;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let _wts_cache = DiskStorage::new(DEFAULT_DB_PATH.to_string());
     println!("hello from boulder.");
 }
