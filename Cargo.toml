@@ -31,6 +31,10 @@ thiserror = "1.0.50"
 rand = "0.8.5"
 
 [dev-dependencies]
+criterion = "0.5.1"
 serial_test = "2.0.0"
 tempdir = "0.3.7"
 
+[[bench]]
+name = "data"
+harness = false
