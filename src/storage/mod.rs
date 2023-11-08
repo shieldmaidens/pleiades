@@ -19,11 +19,12 @@
 use std::fmt::Error;
 use std::io;
 
-use openraft::RaftLogReader;
-use prost::{DecodeError, EncodeError};
+use openraft::Entry;
 use thiserror::Error;
 
 use nova_api::raft::v1::{ColumnFamilyDescriptor, KeyValuePair, LogState, MetaKeyValuePair, MetaLogId, MetaVote, Vote};
+
+use crate::typedef::RaftShardConfig;
 
 pub mod db;
 pub mod memcache;
@@ -40,26 +41,34 @@ pub enum StorageError {
     MetaKeyValueStoreError(MetaKeyValueStoreError),
     #[error("raft log storage error")]
     MetaRaftLogStorageError(MetaRaftLogStorageError),
+    #[error("meta cache error, {0}")]
+    MetaCacheError(MetaCacheError),
+    #[error("encoder error, {0}")]
+    EncoderError(String),
+    #[error("decoder error, {0}")]
+    DecoderError(String),
+    #[error("rocksdb error, {0}")]
+    DiskEngineError(rocksdb::Error),
+    #[error("io error, {0}")]
+    IoError(io::Error),
+}
+
+#[derive(Error, Debug)]
+pub enum MetaCacheError {
+    #[error("cache error, {0}")]
+    GeneralCacheError(&'static str),
 }
 
 #[derive(Error, Debug)]
 pub enum MetaKeyValueStoreError {
     #[error("{0}")]
-    GeneralError(&'static str),
+    GeneralKeyValueStoreError(&'static str),
     #[error("missing the key value pair")]
     MissingKeyValuePair,
     #[error("key length is zero")]
     ZeroLengthKey,
-    #[error("cannot decode key value pair, {0}")]
-    KeyValuePairDecodeError(DecodeError),
-    #[error("cannot encode key value pair, {0}")]
-    KeyValuePairEncodeError(EncodeError),
     #[error("missing shard column family {0} in rocks")]
     MissingColumnFamily(u64),
-    #[error("{0}")]
-    DiskEngineError(rocksdb::Error),
-    #[error("io error, {0}")]
-    IoError(io::Error),
 }
 
 // todo (sienna): I think the the results should be boxed, but I'm not sure. figure this out later
@@ -85,9 +94,9 @@ pub trait MetaRaftLogStorage {
 
     fn save_vote(&self, vote: &MetaVote) -> Result<(), StorageError>;
 
-    fn read_vote(&mut self) -> Result<Option<Vote>, StorageError>;
+    fn read_vote(&mut self, shard_id: u64) -> Result<Option<Vote>, StorageError>;
 
-    fn append<I>(&mut self, entries: Vec<I>) -> Result<(), StorageError>;
+    fn append<I>(&mut self, shard_id: u64, entries: I) -> Result<(), StorageError> where I: IntoIterator<Item=Entry<RaftShardConfig>> + Send;
 
     fn truncate(&mut self, log_id: &MetaLogId) -> Result<(), StorageError>;
 
@@ -96,10 +105,20 @@ pub trait MetaRaftLogStorage {
 
 #[derive(Error, Debug)]
 pub enum MetaRaftLogStorageError {
+    #[error("{0}")]
+    GeneralRaftLogError(&'static str),
     #[error("missing vote for shard {0}")]
     MissingVote(u64),
     #[error("vote payload is zero")]
     ZeroLengthVote,
     #[error("leader id payload is zero")]
     ZeroLengthLeaderId,
+    #[error("log_id payload is zero")]
+    ZeroLengthLogId,
+    #[error("missing log_id for shard {0}")]
+    MissingLogId(u64),
+    #[error("failed to truncate raft log starting at {0}, {1}")]
+    FailedTruncation(u64, &'static str),
+    #[error("failed to purge raft log for shard id {0}, {1}")]
+    FailedPurge(u64, &'static str),
 }

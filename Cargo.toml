@@ -11,6 +11,14 @@ readme = "README.md"
 edition = "2021"
 publish = false
 
+[lib]
+bench = false
+
+[[bin]]
+name = "pleiades"
+path = "src/bin/pleiades.rs"
+bench = false
+
 [workspace]
 members = ["crates/*"]
 
@@ -21,11 +29,12 @@ bytes = "1.5.0"
 mimalloc = { version = "*", default-features = false }
 moka = { version = "0.12.1", features = ["sync"] }
 nova-api = { path = "crates/nova-api" }
-openraft = { git = "https://github.com/datafuselabs/openraft", branch = "main", features = ["storage-v2"] }
+openraft = { git = "https://github.com/datafuselabs/openraft", branch = "main", features = ["serde", "storage-v2"] }
 prost = "0.12.1"
 protobuf = {version = "2" }
 rocksdb = { version = "0.21.0", features = ["multi-threaded-cf"] }
 serde = { version = "1.0.189", features = ["derive"] }
+serde_json = "1.0"
 sysinfo = "0.29.10"
 thiserror = "1.0.50"
 rand = "0.8.5"
@@ -37,6 +46,18 @@ criterion = "0.5.1"
 serial_test = "2.0.0"
 tempdir = "0.3.7"
 
+[profile.dev]
+codegen-units = 256
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+
+[profile.bench]
+codegen-units = 1
+lto = "fat"
+
 [[bench]]
 name = "data"
 harness = false
+

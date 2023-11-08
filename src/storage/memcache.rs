@@ -17,7 +17,10 @@
  */
 
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{
+    Duration,
+    Instant
+};
 
 use ahash::RandomState;
 use bytes::Bytes;
@@ -25,14 +28,24 @@ use moka::Expiry;
 use moka::notification::RemovalCause;
 use moka::sync::Cache;
 
-use nova_api::raft::v1::{KeyValuePair, MetaKeyValuePair};
+use nova_api::raft::v1::{
+    KeyValuePair,
+    MetaKeyValuePair
+};
 
-use crate::storage::{MetaKeyValueStore, StorageError};
+use crate::storage::{
+    MetaKeyValueStore,
+    StorageError
+};
 use crate::storage::db::DiskStorage;
-use crate::storage::MetaKeyValueStoreError::{DiskEngineError, GeneralError, IoError, KeyValuePairDecodeError, KeyValuePairEncodeError, MissingColumnFamily, MissingKeyValuePair};
-use crate::storage::MetaRaftLogStorageError::{MissingVote, ZeroLengthLeaderId, ZeroLengthVote};
+use crate::storage::MetaCacheError::GeneralCacheError;
+use crate::storage::MetaKeyValueStoreError::*;
+use crate::storage::MetaRaftLogStorageError::*;
 use crate::storage::StorageError::MetaKeyValueStoreError;
-use crate::typedef::{SYSTEM_SHARD_RANGE_START, SYSTEM_SHARD_RANGE_STOP};
+use crate::typedef::{
+    SYSTEM_SHARD_RANGE_START,
+    SYSTEM_SHARD_RANGE_STOP,
+};
 use crate::utils::math::between;
 
 pub struct WriteBackCache {
@@ -59,38 +72,39 @@ impl WriteBackCache {
                     }
                 }
                 RemovalCause::Explicit => {
-                    match db_clone.delete(&value) {
-                        Ok(_) => {}
-                        Err(e) => match e {
-                            // tags: data_loss_risk
-                            // nb (sienna): this is our absolute last change to ensure whatever was
-                            // handed to pleiades is stored persistently. these panics are here very
-                            // intentionally. if we hit these panics, there's a very important
-                            // logic error in the hot path that needs to be fixed IMMEDIATELY! if we
-                            // remove the panics, we risk data loss.
-
-                            StorageError::MissingShardId => panic!("failed to evict cache item due to missing shard, {}", e),
-                            StorageError::MetaKeyValueStoreError(kvse) => match kvse {
-                                MissingKeyValuePair => {} // do nothing because we couldn't find it
-                                GeneralError(ge) => panic!("failed to evict cache item due to general error, {}", ge),
-
-                                // between hardware ecc, linux, and rust, it's exceedingly unlikely
-                                // this is the case, but it's here just in case.
-                                KeyValuePairDecodeError(kvpd) => panic!("POSSIBLE DATA CORRUPTION: failed to evict cache item due to decode error, {}", kvpd),
-                                KeyValuePairEncodeError(kvpe) => panic!("POSSIBLE DATA CORRUPTION: failed to evict cache item due to encode error, {}", kvpe),
-
-                                MissingColumnFamily(mcf) => panic!("failed to evict cache item due to missing column family, {}", mcf),
-                                DiskEngineError(dee) => panic!("failed to evict cache item due to disk engine error, {}", dee),
-                                IoError(ioe) => panic!("failed to evict cache item due to io error, {}", ioe),
-                                _ZeroLengthKey => {}
-                            },
-                            StorageError::MetaRaftLogStorageError(rlse) => match rlse {
-                                MissingVote(mve) => panic!("failed to evict cache item due to missing vote, {}", mve),
-                                ZeroLengthVote => {}
-                                ZeroLengthLeaderId => {}
-                            },
-                        }
-                    }
+                //     match db_clone.delete(&value) {
+                //         Ok(_) => {}
+                //         Err(e) => match e {
+                //             // tags: data_loss_risk
+                //             // nb (sienna): this is our absolute last change to ensure whatever was
+                //             // handed to pleiades is stored persistently. these panics are here very
+                //             // intentionally. if we hit these panics, there's a very important
+                //             // logic error in the hot path that needs to be fixed IMMEDIATELY! if we
+                //             // remove the panics, we risk data loss.
+                //
+                //             StorageError::MissingShardId => panic!("failed to evict cache item due to missing shard, {}", e),
+                //             StorageError::MetaKeyValueStoreError(kvse) => match kvse {
+                //
+                //                 MissingKeyValuePair => {} // do nothing because we couldn't find it
+                //                 GeneralCacheError(ge) => panic!("failed to evict cache item due to general error, {}", ge),
+                //
+                //                 // between hardware ecc, linux, and rust, it's exceedingly unlikely
+                //                 // this is the case, but it's here just in case.
+                //                 KeyValuePairDecodeError(kvpd) => panic!("POSSIBLE DATA CORRUPTION: failed to evict cache item due to decode error, {}", kvpd),
+                //                 KeyValuePairEncodeError(kvpe) => panic!("POSSIBLE DATA CORRUPTION: failed to evict cache item due to encode error, {}", kvpe),
+                //
+                //                 MissingColumnFamily(mcf) => panic!("failed to evict cache item due to missing column family, {}", mcf),
+                //                 DiskEngineError(dee) => panic!("failed to evict cache item due to disk engine error, {}", dee),
+                //                 IoError(ioe) => panic!("failed to evict cache item due to io error, {}", ioe),
+                //                 _ZeroLengthKey => {}
+                //             },
+                //             StorageError::MetaRaftLogStorageError(rlse) => match rlse {
+                //                 MissingVote(mve) => panic!("failed to evict cache item due to missing vote, {}", mve),
+                //                 ZeroLengthVote => {}
+                //                 ZeroLengthLeaderId => {}
+                //             },
+                //         }
+                //     }
                 }
                 RemovalCause::Replaced => {
                     match db_clone.put(&value) {
@@ -201,8 +215,8 @@ mod tests {
 
     use crate::storage::{MetaKeyValueStore, StorageError};
     use crate::storage::memcache::WriteBackCache;
-    use crate::storage::MetaKeyValueStoreError::IoError;
-    use crate::storage::StorageError::MetaKeyValueStoreError;
+    use crate::storage::MetaKeyValueStoreError::*;
+    use crate::storage::StorageError::{IoError, MetaKeyValueStoreError};
 
     #[test]
     // nb (sienna): this test uses about 200MiB of disk space, but will clean it up afterwards
@@ -210,7 +224,7 @@ mod tests {
         // clear the directory so we can write a new db, then open an existing one
         let temp_dir = match TempDir::new("open_existing_column") {
             Ok(v) => v,
-            Err(e) => return Err(MetaKeyValueStoreError(IoError(e)))
+            Err(e) => return Err(IoError(e))
         };
         let db_path = temp_dir.path().to_str().unwrap().to_string();
 

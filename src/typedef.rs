@@ -38,4 +38,4 @@ openraft::declare_raft_types!(
 );
 
 pub const SYSTEM_SHARD_RANGE_START: ShardId = 1;
-pub const SYSTEM_SHARD_RANGE_STOP: ShardId = 100;
+pub const SYSTEM_SHARD_RANGE_STOP: ShardId = 1000;

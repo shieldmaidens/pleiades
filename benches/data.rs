@@ -18,12 +18,17 @@
 
 use std::sync::Arc;
 use criterion::*;
+use mimalloc::MiMalloc;
 use rand::{Rng, RngCore};
 use tempdir::TempDir;
 use nova_api::raft::v1::{KeyValuePair, MetaKeyValuePair};
 use pleiades::storage::db::DiskStorage;
 use pleiades::storage::memcache::WriteBackCache;
 use pleiades::storage::MetaKeyValueStore;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 
 fn gen_meta_key(size:  &usize) -> MetaKeyValuePair {
     let mut buf = Vec::with_capacity(*size);

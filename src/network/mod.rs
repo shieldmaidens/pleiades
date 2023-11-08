@@ -16,10 +16,15 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use serde::{
+    Deserialize,
+    Serialize
+};
+
 mod raft;
 
 /// Information about the host node.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct HostNode {
     pub addr: String,
 }
