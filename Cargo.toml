@@ -11,6 +11,14 @@ readme = "README.md"
 edition = "2021"
 publish = false
 
+[lib]
+bench = false
+
+[[bin]]
+name = "pleiades"
+path = "src/bin/pleiades.rs"
+bench = false
+
 [workspace]
 members = ["crates/*"]
 
@@ -37,6 +45,19 @@ criterion = "0.5.1"
 serial_test = "2.0.0"
 tempdir = "0.3.7"
 
+[profile.dev]
+codegen-units = 256
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+
+[profile.bench]
+codegen-units = 1
+lto = "fat"
+panic = "abort"
+
 [[bench]]
 name = "data"
 harness = false
+
