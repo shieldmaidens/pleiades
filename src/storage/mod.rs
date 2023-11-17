@@ -16,13 +16,22 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::fmt::Error;
-use std::io;
+use std::{
+    fmt::Error,
+    io,
+};
 
+use nova_api::raft::v1::{
+    ColumnFamilyDescriptor,
+    KeyValuePair,
+    LogState,
+    MetaKeyValuePair,
+    MetaLogId,
+    MetaVote,
+    Vote,
+};
 use openraft::Entry;
 use thiserror::Error;
-
-use nova_api::raft::v1::{ColumnFamilyDescriptor, KeyValuePair, LogState, MetaKeyValuePair, MetaLogId, MetaVote, Vote};
 
 use crate::typedef::RaftShardConfig;
 
@@ -71,7 +80,8 @@ pub enum MetaKeyValueStoreError {
     MissingColumnFamily(u64),
 }
 
-// todo (sienna): I think the the results should be boxed, but I'm not sure. figure this out later
+// todo (sienna): I think the the results should be boxed, but I'm not sure.
+// figure this out later
 pub trait MetaKeyValueStore {
     /// Fetches a key from the local disk storage.
     fn get(&self, key: &MetaKeyValuePair) -> Result<KeyValuePair, StorageError>;
@@ -90,13 +100,15 @@ pub trait ColumnFamilyEncoding {
 
 /// Used for state machine implementation
 pub trait MetaRaftLogStorage {
-    fn get_log_state(&mut self) -> Result<LogState, StorageError>;
+    fn get_log_state(&mut self, shard_id: u64) -> Result<LogState, StorageError>;
 
     fn save_vote(&self, vote: &MetaVote) -> Result<(), StorageError>;
 
     fn read_vote(&mut self, shard_id: u64) -> Result<Option<Vote>, StorageError>;
 
-    fn append<I>(&mut self, shard_id: u64, entries: I) -> Result<(), StorageError> where I: IntoIterator<Item=Entry<RaftShardConfig>> + Send;
+    fn append<I>(&mut self, shard_id: u64, entries: I) -> Result<(), StorageError>
+    where
+        I: IntoIterator<Item = Entry<RaftShardConfig>> + Send;
 
     fn truncate(&mut self, log_id: &MetaLogId) -> Result<(), StorageError>;
 

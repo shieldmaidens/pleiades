@@ -21,15 +21,14 @@ use std::path::Path;
 pub const TEST_ROCKSDB_PATH: &str = "/tmp/pleiades/";
 
 pub fn clear_tmp_dir() -> Result<(), std::io::Error> {
-
     if Path::new(TEST_ROCKSDB_PATH).exists() {
         match std::fs::remove_dir_all(TEST_ROCKSDB_PATH) {
-            Ok(_) => {}
-            Err(e) => return Err(e)
+            | Ok(_) => {},
+            | Err(e) => return Err(e),
         }
         match std::fs::create_dir_all(TEST_ROCKSDB_PATH) {
-            Ok(_) => {}
-            Err(e) => return Err(e)
+            | Ok(_) => {},
+            | Err(e) => return Err(e),
         }
     }
     Ok(())

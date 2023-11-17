@@ -16,7 +16,11 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use thiserror::Error;
+
+use crate::storage::StorageError;
+
 mod network;
-mod typedef;
 pub mod storage;
+mod typedef;
 pub mod utils;

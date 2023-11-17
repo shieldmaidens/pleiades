@@ -16,37 +16,41 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::sync::Arc;
-use std::time::{
-    Duration,
-    Instant
+use std::{
+    sync::Arc,
+    time::{
+        Duration,
+        Instant,
+    },
 };
 
 use ahash::RandomState;
 use bytes::Bytes;
-use moka::Expiry;
-use moka::notification::RemovalCause;
-use moka::sync::Cache;
-
+use moka::{
+    notification::RemovalCause,
+    sync::Cache,
+    Expiry,
+};
 use nova_api::raft::v1::{
     KeyValuePair,
-    MetaKeyValuePair
+    MetaKeyValuePair,
 };
 
-use crate::storage::{
-    MetaKeyValueStore,
-    StorageError
+use crate::{
+    storage::{
+        db::DiskStorage,
+        MetaKeyValueStore,
+        MetaKeyValueStoreError::*,
+        MetaRaftLogStorageError::*,
+        StorageError,
+        StorageError::MetaKeyValueStoreError,
+    },
+    typedef::{
+        SYSTEM_SHARD_RANGE_START,
+        SYSTEM_SHARD_RANGE_STOP,
+    },
+    utils::math::between,
 };
-use crate::storage::db::DiskStorage;
-use crate::storage::MetaCacheError::GeneralCacheError;
-use crate::storage::MetaKeyValueStoreError::*;
-use crate::storage::MetaRaftLogStorageError::*;
-use crate::storage::StorageError::MetaKeyValueStoreError;
-use crate::typedef::{
-    SYSTEM_SHARD_RANGE_START,
-    SYSTEM_SHARD_RANGE_STOP,
-};
-use crate::utils::math::between;
 
 pub struct WriteBackCache {
     db: Arc<DiskStorage>,
@@ -60,64 +64,89 @@ impl WriteBackCache {
         let db = Arc::new(DiskStorage::new(path));
 
         //region eviction lister
-        // this is our eviction listener and will make sure that things are written back to disk
-        // when expired/updated/over size, and deleted from disk when explicitly removed.
+        // this is our eviction listener and will make sure that things are written back
+        // to disk when expired/updated/over size, and deleted from disk when
+        // explicitly removed.
         let db_clone = db.clone();
-        let eviction_listener = move |_key: Arc<Bytes>, value: Arc<MetaKeyValuePair>, cause: RemovalCause| {
+        let eviction_listener = move |_key: Arc<Bytes>,
+                                      value: Arc<MetaKeyValuePair>,
+                                      cause: RemovalCause| {
             match cause {
-                RemovalCause::Expired => {
-                    match db_clone.put(&value) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to write back expired metakeyvaluepair to disk, {}", e)
-                    }
-                }
-                RemovalCause::Explicit => {
-                //     match db_clone.delete(&value) {
-                //         Ok(_) => {}
-                //         Err(e) => match e {
-                //             // tags: data_loss_risk
-                //             // nb (sienna): this is our absolute last change to ensure whatever was
-                //             // handed to pleiades is stored persistently. these panics are here very
-                //             // intentionally. if we hit these panics, there's a very important
-                //             // logic error in the hot path that needs to be fixed IMMEDIATELY! if we
-                //             // remove the panics, we risk data loss.
-                //
-                //             StorageError::MissingShardId => panic!("failed to evict cache item due to missing shard, {}", e),
-                //             StorageError::MetaKeyValueStoreError(kvse) => match kvse {
-                //
-                //                 MissingKeyValuePair => {} // do nothing because we couldn't find it
-                //                 GeneralCacheError(ge) => panic!("failed to evict cache item due to general error, {}", ge),
-                //
-                //                 // between hardware ecc, linux, and rust, it's exceedingly unlikely
-                //                 // this is the case, but it's here just in case.
-                //                 KeyValuePairDecodeError(kvpd) => panic!("POSSIBLE DATA CORRUPTION: failed to evict cache item due to decode error, {}", kvpd),
-                //                 KeyValuePairEncodeError(kvpe) => panic!("POSSIBLE DATA CORRUPTION: failed to evict cache item due to encode error, {}", kvpe),
-                //
-                //                 MissingColumnFamily(mcf) => panic!("failed to evict cache item due to missing column family, {}", mcf),
-                //                 DiskEngineError(dee) => panic!("failed to evict cache item due to disk engine error, {}", dee),
-                //                 IoError(ioe) => panic!("failed to evict cache item due to io error, {}", ioe),
-                //                 _ZeroLengthKey => {}
-                //             },
-                //             StorageError::MetaRaftLogStorageError(rlse) => match rlse {
-                //                 MissingVote(mve) => panic!("failed to evict cache item due to missing vote, {}", mve),
-                //                 ZeroLengthVote => {}
-                //                 ZeroLengthLeaderId => {}
-                //             },
-                //         }
-                //     }
-                }
-                RemovalCause::Replaced => {
-                    match db_clone.put(&value) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to write back replaced metakeyvaluepair to disk, {}", e)
-                    }
-                }
-                RemovalCause::Size => {
-                    match db_clone.put(&value) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to write back sized metakeyvaluepair to disk, {}", e)
-                    }
-                }
+                | RemovalCause::Expired => match db_clone.put(&value) {
+                    | Ok(_) => {},
+                    | Err(e) => panic!(
+                        "failed to write back expired metakeyvaluepair to disk, {}",
+                        e
+                    ),
+                },
+                | RemovalCause::Explicit => {
+                    //     match db_clone.delete(&value) {
+                    //         Ok(_) => {}
+                    //         Err(e) => match e {
+                    //             // tags: data_loss_risk
+                    //             // nb (sienna): this is our absolute last
+                    // change to ensure whatever was
+                    //             // handed to pleiades is stored persistently.
+                    // these panics are here very
+                    //             // intentionally. if we hit these panics,
+                    // there's a very important
+                    // // logic error in the hot path that needs to be fixed
+                    // IMMEDIATELY! if we             //
+                    // remove the panics, we risk data loss.
+                    //
+                    //             StorageError::MissingShardId =>
+                    // panic!("failed to evict cache item due to missing shard,
+                    // {}", e),
+                    // StorageError::MetaKeyValueStoreError(kvse) => match kvse
+                    // {
+                    //
+                    //                 MissingKeyValuePair => {} // do nothing
+                    // because we couldn't find it
+                    //                 GeneralCacheError(ge) => panic!("failed
+                    // to evict cache item due to general error, {}", ge),
+                    //
+                    //                 // between hardware ecc, linux, and rust,
+                    // it's exceedingly unlikely
+                    // // this is the case, but it's here just in case.
+                    //                 KeyValuePairDecodeError(kvpd) =>
+                    // panic!("POSSIBLE DATA CORRUPTION: failed to evict cache
+                    // item due to decode error, {}", kvpd),
+                    //                 KeyValuePairEncodeError(kvpe) =>
+                    // panic!("POSSIBLE DATA CORRUPTION: failed to evict cache
+                    // item due to encode error, {}", kvpe),
+                    //
+                    //                 MissingColumnFamily(mcf) =>
+                    // panic!("failed to evict cache item due to missing column
+                    // family, {}", mcf),
+                    // DiskEngineError(dee) => panic!("failed to evict cache
+                    // item due to disk engine error, {}", dee),
+                    //                 IoError(ioe) => panic!("failed to evict
+                    // cache item due to io error, {}", ioe),
+                    //                 _ZeroLengthKey => {}
+                    //             },
+                    //             StorageError::MetaRaftLogStorageError(rlse)
+                    // => match rlse {
+                    // MissingVote(mve) => panic!("failed to evict cache item
+                    // due to missing vote, {}", mve),
+                    //                 ZeroLengthVote => {}
+                    //                 ZeroLengthLeaderId => {}
+                    //             },
+                    //         }
+                    //     }
+                },
+                | RemovalCause::Replaced => match db_clone.put(&value) {
+                    | Ok(_) => {},
+                    | Err(e) => panic!(
+                        "failed to write back replaced metakeyvaluepair to disk, {}",
+                        e
+                    ),
+                },
+                | RemovalCause::Size => match db_clone.put(&value) {
+                    | Ok(_) => {},
+                    | Err(e) => {
+                        panic!("failed to write back sized metakeyvaluepair to disk, {}", e)
+                    },
+                },
             }
         };
         //endregion
@@ -138,37 +167,44 @@ impl WriteBackCache {
 }
 
 /// The expiry policy for the write back cache.
-// nb (sienna): this is mostly for plumbing, we can optimize this later for more specific caching
-// policies.
+// nb (sienna): this is mostly for plumbing, we can optimize this later for more
+// specific caching policies.
 impl Expiry<Bytes, Arc<MetaKeyValuePair>> for WriteBackCache {
-    fn expire_after_create(&self,
-                           _key: &Bytes,
-                           value: &Arc<MetaKeyValuePair>,
-                           _created_at: Instant,
+    fn expire_after_create(
+        &self,
+        _key: &Bytes,
+        value: &Arc<MetaKeyValuePair>,
+        _created_at: Instant,
     ) -> Option<Duration> {
         // check for system shards
-        if between(value.shard, SYSTEM_SHARD_RANGE_START, SYSTEM_SHARD_RANGE_STOP) {
+        if between(
+            value.shard,
+            SYSTEM_SHARD_RANGE_START,
+            SYSTEM_SHARD_RANGE_STOP,
+        ) {
             Some(Self::DEFAULT_SYSTEM_DATA_EXPIRY)
         } else {
             None
         }
     }
 
-    fn expire_after_read(&self,
-                         _key: &Bytes,
-                         _value: &Arc<MetaKeyValuePair>,
-                         _read_at: Instant,
-                         duration_until_expiry: Option<Duration>,
-                         _last_modified_at: Instant,
+    fn expire_after_read(
+        &self,
+        _key: &Bytes,
+        _value: &Arc<MetaKeyValuePair>,
+        _read_at: Instant,
+        duration_until_expiry: Option<Duration>,
+        _last_modified_at: Instant,
     ) -> Option<Duration> {
         duration_until_expiry
     }
 
-    fn expire_after_update(&self,
-                           _key: &Bytes,
-                           _value: &Arc<MetaKeyValuePair>,
-                           _updated_at: Instant,
-                           duration_until_expiry: Option<Duration>,
+    fn expire_after_update(
+        &self,
+        _key: &Bytes,
+        _value: &Arc<MetaKeyValuePair>,
+        _updated_at: Instant,
+        duration_until_expiry: Option<Duration>,
     ) -> Option<Duration> {
         duration_until_expiry
     }
@@ -178,53 +214,70 @@ impl MetaKeyValueStore for WriteBackCache {
     fn get(&self, meta_key: &MetaKeyValuePair) -> Result<KeyValuePair, StorageError> {
         let key = &meta_key.kvp.clone().unwrap().key;
         let found_value = match self.data_cache.get(key) {
-            Some(value) => match (*value).clone().kvp {
-                None => return Err(MetaKeyValueStoreError(MissingKeyValuePair)),
-                Some(v) => v,
+            | Some(value) => match (*value).clone().kvp {
+                | None => return Err(MetaKeyValueStoreError(MissingKeyValuePair)),
+                | Some(v) => v,
             },
-            None => {
+            | None => {
                 let value = self.db.get(meta_key)?;
-                self.data_cache.insert(key.clone(), Arc::new(MetaKeyValuePair {
-                    shard: meta_key.shard,
-                    kvp: Some(value.clone()),
-                    cache_policy: None,
-                }));
+                self.data_cache.insert(
+                    key.clone(),
+                    Arc::new(MetaKeyValuePair {
+                        shard: meta_key.shard,
+                        kvp: Some(value.clone()),
+                        cache_policy: None,
+                    }),
+                );
                 value
-            }
+            },
         };
 
         Ok(found_value)
     }
 
     fn put(&self, meta_key: &MetaKeyValuePair) -> Result<(), StorageError> {
-        self.data_cache.insert(meta_key.kvp.clone().unwrap().key, Arc::new(meta_key.clone()));
+        self.data_cache.insert(
+            meta_key.kvp.clone().unwrap().key,
+            Arc::new(meta_key.clone()),
+        );
         Ok(())
     }
 
     fn delete(&self, meta_key: &MetaKeyValuePair) -> Result<(), StorageError> {
-        Ok(self.data_cache.invalidate(&meta_key.kvp.clone().unwrap().key))
+        Ok(self
+            .data_cache
+            .invalidate(&meta_key.kvp.clone().unwrap().key))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use rand::{Rng, RngCore};
+    use nova_api::raft::v1::{
+        KeyValuePair,
+        MetaKeyValuePair,
+    };
+    use rand::{
+        Rng,
+        RngCore,
+    };
     use tempdir::TempDir;
 
-    use nova_api::raft::v1::{KeyValuePair, MetaKeyValuePair};
-
-    use crate::storage::{MetaKeyValueStore, StorageError};
-    use crate::storage::memcache::WriteBackCache;
-    use crate::storage::MetaKeyValueStoreError::*;
-    use crate::storage::StorageError::{IoError, MetaKeyValueStoreError};
+    use crate::storage::{
+        memcache::WriteBackCache,
+        MetaKeyValueStore,
+        MetaKeyValueStoreError::*,
+        StorageError,
+        StorageError::IoError,
+    };
 
     #[test]
-    // nb (sienna): this test uses about 200MiB of disk space, but will clean it up afterwards
+    // nb (sienna): this test uses about 200MiB of disk space, but will clean it up
+    // afterwards
     fn put_and_get_and_delete() -> Result<(), StorageError> {
         // clear the directory so we can write a new db, then open an existing one
         let temp_dir = match TempDir::new("open_existing_column") {
-            Ok(v) => v,
-            Err(e) => return Err(IoError(e))
+            | Ok(v) => v,
+            | Err(e) => return Err(IoError(e)),
         };
         let db_path = temp_dir.path().to_str().unwrap().to_string();
 
@@ -261,20 +314,20 @@ mod tests {
             };
 
             match wbc.put(&meta_key) {
-                Ok(_) => {}
-                Err(e) => return Err(e)
+                | Ok(_) => {},
+                | Err(e) => return Err(e),
             };
 
             match wbc.get(&meta_key) {
-                Ok(_) => {}
-                Err(e) => return Err(e)
+                | Ok(_) => {},
+                | Err(e) => return Err(e),
             };
 
             match wbc.delete(&meta_key) {
-                Ok(_) => {}
-                Err(e) => return Err(e)
+                | Ok(_) => {},
+                | Err(e) => return Err(e),
             };
-        };
+        }
 
         Ok(())
     }

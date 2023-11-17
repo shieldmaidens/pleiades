@@ -16,7 +16,15 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// Quickly compare whether a value is between two other values.
-pub fn between<T: Ord>(x: T, min: T, max: T) -> bool {
-    x >= min && x <= max
-}
+pub type Delimiter = u8;
+
+/// This is the logical separator for namespacing within the hierarchy of keys
+/// on disk.
+pub const NAMESPACE_DELIMITER: Delimiter = b'/';
+
+/// Used to delimit the version of the key from the key and it's respective
+/// version
+pub const VERSION_DELIMITER: Delimiter = b'@';
+
+/// This version tag is used to represent the latest version of a given key.
+pub const LATEST_VERSION_TAG: u8 = 0xff;

@@ -16,38 +16,57 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use openraft::async_trait::async_trait;
-use openraft::error::{
-    InstallSnapshotError,
-    RaftError,
-    RPCError,
+use openraft::{
+    async_trait::async_trait,
+    error::{
+        InstallSnapshotError,
+        RPCError,
+        RaftError,
+    },
+    raft::{
+        AppendEntriesRequest,
+        AppendEntriesResponse,
+        InstallSnapshotRequest,
+        InstallSnapshotResponse,
+        VoteRequest,
+        VoteResponse,
+    },
+    RaftNetwork,
 };
-use openraft::raft::{
-    AppendEntriesRequest,
-    AppendEntriesResponse,
-    InstallSnapshotRequest,
-    InstallSnapshotResponse,
-    VoteRequest,
-    VoteResponse,
-};
-use openraft::RaftNetwork;
 
-use crate::network::HostNode;
-use crate::typedef::{NodeId, RaftShardConfig};
+use crate::{
+    network::HostNode,
+    typedef::{
+        NodeId,
+        RaftShardConfig,
+    },
+};
 
 struct RaftServer {}
 
 #[async_trait]
 impl RaftNetwork<RaftShardConfig> for RaftServer {
-    async fn send_append_entries(&mut self, _rpc: AppendEntriesRequest<RaftShardConfig>) -> Result<AppendEntriesResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId>>> {
+    async fn send_append_entries(
+        &mut self,
+        _rpc: AppendEntriesRequest<RaftShardConfig>,
+    ) -> Result<AppendEntriesResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId>>> {
         todo!()
     }
 
-    async fn send_install_snapshot(&mut self, _rpc: InstallSnapshotRequest<RaftShardConfig>) -> Result<InstallSnapshotResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId, InstallSnapshotError>>> {
+    async fn send_install_snapshot(
+        &mut self,
+        _rpc: InstallSnapshotRequest<RaftShardConfig>,
+    ) -> Result<
+        InstallSnapshotResponse<NodeId>,
+        RPCError<NodeId, HostNode, RaftError<NodeId, InstallSnapshotError>>,
+    > {
         todo!()
     }
 
-    async fn send_vote(&mut self, _rpc: VoteRequest<NodeId>) -> Result<VoteResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId>>> {
+    async fn send_vote(
+        &mut self,
+        _rpc: VoteRequest<NodeId>,
+    ) -> Result<VoteResponse<NodeId>, RPCError<NodeId, HostNode, RaftError<NodeId>>> {
         todo!()
     }
 }

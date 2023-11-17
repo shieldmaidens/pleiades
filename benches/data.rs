@@ -17,20 +17,28 @@
  */
 
 use std::sync::Arc;
+
 use criterion::*;
 use mimalloc::MiMalloc;
-use rand::{Rng, RngCore};
+use nova_api::raft::v1::{
+    KeyValuePair,
+    MetaKeyValuePair,
+};
+use pleiades::storage::{
+    db::DiskStorage,
+    memcache::WriteBackCache,
+    MetaKeyValueStore,
+};
+use rand::{
+    Rng,
+    RngCore,
+};
 use tempdir::TempDir;
-use nova_api::raft::v1::{KeyValuePair, MetaKeyValuePair};
-use pleiades::storage::db::DiskStorage;
-use pleiades::storage::memcache::WriteBackCache;
-use pleiades::storage::MetaKeyValueStore;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-
-fn gen_meta_key(size:  &usize) -> MetaKeyValuePair {
+fn gen_meta_key(size: &usize) -> MetaKeyValuePair {
     let mut buf = Vec::with_capacity(*size);
     rand::thread_rng().fill_bytes(&mut buf);
 
@@ -49,8 +57,8 @@ pub fn bench_wbc_storage(c: &mut Criterion) {
     let mut group = c.benchmark_group("write back cache storage");
 
     let temp_dir = match TempDir::new("bench_wbc_storage") {
-        Ok(v) => v,
-        Err(e) => panic!("error making temp directory for data storage, {}", e)
+        | Ok(v) => v,
+        | Err(e) => panic!("error making temp directory for data storage, {}", e),
     };
     let db_path = temp_dir.path().to_str().unwrap().to_string();
     let ds = Arc::new(WriteBackCache::new(db_path.clone()));
@@ -60,16 +68,14 @@ pub fn bench_wbc_storage(c: &mut Criterion) {
 
         group.bench_function(BenchmarkId::new("cache put", *size), |b| {
             b.iter_batched(
-                || {
-                    gen_meta_key(size)
-                },
+                || gen_meta_key(size),
                 |meta_key| {
                     match ds.put(&meta_key) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to put key value pair, {}", e)
+                        | Ok(_) => {},
+                        | Err(e) => panic!("failed to put key value pair, {}", e),
                     };
                 },
-                BatchSize::LargeInput
+                BatchSize::LargeInput,
             );
         });
 
@@ -79,19 +85,19 @@ pub fn bench_wbc_storage(c: &mut Criterion) {
                     let meta_key = gen_meta_key(size);
 
                     match ds.put(&meta_key) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to put key value pair, {}", e)
+                        | Ok(_) => {},
+                        | Err(e) => panic!("failed to put key value pair, {}", e),
                     };
 
                     meta_key
                 },
                 |meta_key| {
                     match ds.get(&meta_key) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to get key value pair, {}", e)
+                        | Ok(_) => {},
+                        | Err(e) => panic!("failed to get key value pair, {}", e),
                     };
                 },
-                BatchSize::LargeInput
+                BatchSize::LargeInput,
             );
         });
 
@@ -101,30 +107,30 @@ pub fn bench_wbc_storage(c: &mut Criterion) {
                     let meta_key = gen_meta_key(size);
 
                     match ds.put(&meta_key) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to put key value pair, {}", e)
+                        | Ok(_) => {},
+                        | Err(e) => panic!("failed to put key value pair, {}", e),
                     };
 
                     meta_key
                 },
                 |meta_key| {
                     match ds.delete(&meta_key) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to delete key value pair, {}", e)
+                        | Ok(_) => {},
+                        | Err(e) => panic!("failed to delete key value pair, {}", e),
                     };
                 },
-                BatchSize::LargeInput
+                BatchSize::LargeInput,
             );
         });
-    };
+    }
 }
 
 pub fn bench_disk_engine(c: &mut Criterion) {
     let mut group = c.benchmark_group("disk engine");
 
     let temp_dir = match TempDir::new("bench_disk_engine") {
-        Ok(v) => v,
-        Err(e) => panic!("error making temp directory for data storage, {}", e)
+        | Ok(v) => v,
+        | Err(e) => panic!("error making temp directory for data storage, {}", e),
     };
     let db_path = temp_dir.path().to_str().unwrap().to_string();
     let ds = Arc::new(DiskStorage::new(db_path.clone()));
@@ -134,16 +140,14 @@ pub fn bench_disk_engine(c: &mut Criterion) {
 
         group.bench_function(BenchmarkId::new("disk engine put", *size), |b| {
             b.iter_batched(
-                || {
-                    gen_meta_key(size)
-                },
+                || gen_meta_key(size),
                 |meta_key| {
                     match ds.put(&meta_key) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to put key value pair, {}", e)
+                        | Ok(_) => {},
+                        | Err(e) => panic!("failed to put key value pair, {}", e),
                     };
                 },
-                BatchSize::LargeInput
+                BatchSize::LargeInput,
             );
         });
 
@@ -153,19 +157,19 @@ pub fn bench_disk_engine(c: &mut Criterion) {
                     let meta_key = gen_meta_key(size);
 
                     match ds.put(&meta_key) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to put key value pair, {}", e)
+                        | Ok(_) => {},
+                        | Err(e) => panic!("failed to put key value pair, {}", e),
                     };
 
                     meta_key
                 },
                 |meta_key| {
                     match ds.get(&meta_key) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to get key value pair, {}", e)
+                        | Ok(_) => {},
+                        | Err(e) => panic!("failed to get key value pair, {}", e),
                     };
                 },
-                BatchSize::LargeInput
+                BatchSize::LargeInput,
             );
         });
 
@@ -175,22 +179,22 @@ pub fn bench_disk_engine(c: &mut Criterion) {
                     let meta_key = gen_meta_key(size);
 
                     match ds.put(&meta_key) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to put key value pair, {}", e)
+                        | Ok(_) => {},
+                        | Err(e) => panic!("failed to put key value pair, {}", e),
                     };
 
                     meta_key
                 },
                 |meta_key| {
                     match ds.delete(&meta_key) {
-                        Ok(_) => {}
-                        Err(e) => panic!("failed to delete key value pair, {}", e)
+                        | Ok(_) => {},
+                        | Err(e) => panic!("failed to delete key value pair, {}", e),
                     };
                 },
-                BatchSize::LargeInput
+                BatchSize::LargeInput,
             );
         });
-    };
+    }
 }
 
 criterion_group!(benches, bench_disk_engine, bench_wbc_storage);
