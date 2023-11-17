@@ -5,8 +5,8 @@ authors = ["Sienna Lloyd", "Pleiades Authors"]
 description = "A lightning-fast constellation mesh"
 license = "GPL-3.0-only"
 keywords = ["kv", "distributed-systems", "raft", "constellation", "mesh"]
-homepage = "https://review.r3t.io/nova/pleiades"
-repository = "https://review.r3t.io/nova/pleiades"
+homepage = "https://github.com/shieldmaidens/pleiades"
+repository = "https://github.com/shieldmaidens/pleiades"
 readme = "README.md"
 edition = "2021"
 publish = false
@@ -40,6 +40,8 @@ thiserror = "1.0.50"
 rand = "0.8.5"
 tokio = "1.33.0"
 tempfile = "3.8.1"
+crc = "3.0.1"
+log = "0.4.20"
 
 [dev-dependencies]
 criterion = "0.5.1"

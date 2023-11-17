@@ -16,40 +16,63 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::{
+    fmt::Debug,
+    ops::RangeBounds,
+    sync::Arc,
+};
 
-use std::fmt::Debug;
-use std::ops::RangeBounds;
-use std::sync::Arc;
-
-use openraft::{Entry, LogId, LogState, OptionalSend, RaftLogReader, RaftSnapshotBuilder, RaftStorage, RaftTypeConfig, Snapshot, SnapshotMeta, StorageError, StoredMembership, Vote};
-use openraft::async_trait::async_trait;
-use openraft::storage::{LogFlushed, RaftLogStorage, RaftStateMachine};
-use openraft::testing::StoreBuilder;
-use rand::RngCore;
+use nova_api::raft::v1::{
+    MetaVote,
+    RaftEntryResponse,
+};
+use openraft::{
+    async_trait::async_trait,
+    storage::{
+        LogFlushed,
+        RaftLogStorage,
+        RaftStateMachine,
+    },
+    testing::StoreBuilder,
+    Entry,
+    LogId,
+    LogState,
+    OptionalSend,
+    RaftLogReader,
+    RaftSnapshotBuilder,
+    RaftTypeConfig,
+    Snapshot,
+    SnapshotMeta,
+    StorageError,
+    StoredMembership,
+    Vote,
+};
 use tempfile::TempDir;
 
-use nova_api::raft::v1::{MetaVote, RaftEntryResponse};
+use crate::{
+    network::HostNode,
+    storage::memcache::WriteBackCache,
+    typedef::{
+        NodeId,
+        RaftShardConfig,
+        ShardId,
+    },
+};
 
-use crate::network::HostNode;
-use crate::storage::memcache::WriteBackCache;
-use crate::storage::MetaKeyValueStore;
-use crate::typedef::{NodeId, RaftShardConfig, ShardId};
-
-/// A Raft shard storage layer that handles the persistent storage of Raft and user data.
+/// A Raft shard storage layer that handles the persistent storage of Raft and
+/// user data.
 pub struct RaftShard {
     shard_id: ShardId,
-    wbc: Arc<WriteBackCache>,
+    _wbc: Arc<WriteBackCache>,
 }
 
 impl RaftShard {
-    pub fn new(shard_id: ShardId, wbc: Arc<WriteBackCache>) -> Self {
-        Self {
-            shard_id,
-            wbc,
-        }
+    pub fn new(shard_id: ShardId, _wbc: Arc<WriteBackCache>) -> Self {
+        Self { shard_id, _wbc }
     }
 }
 
+#[allow(unused)]
 #[async_trait]
 impl RaftLogStorage<RaftShardConfig> for RaftShard {
     type LogReader = Self;
@@ -81,10 +104,14 @@ impl RaftLogStorage<RaftShardConfig> for RaftShard {
         todo!()
     }
 
-    async fn append<I>(&mut self, entries: I, callback: LogFlushed<NodeId>)
-                       -> Result<(), StorageError<NodeId>>
-        where I: IntoIterator<Item=Entry<RaftShardConfig>> + Send, I::IntoIter: OptionalSend
-    {
+    async fn append<I>(
+        &mut self,
+        entries: I,
+        callback: LogFlushed<NodeId>,
+    ) -> Result<(), StorageError<NodeId>>
+    where
+        I: IntoIterator<Item = Entry<RaftShardConfig>> + Send,
+        I::IntoIter: OptionalSend, {
         todo!()
     }
 
@@ -97,15 +124,25 @@ impl RaftLogStorage<RaftShardConfig> for RaftShard {
     }
 }
 
+#[allow(unused)]
 #[async_trait]
 impl RaftStateMachine<RaftShardConfig> for RaftShard {
     type SnapshotBuilder = Self;
 
-    async fn applied_state(&mut self) -> Result<(Option<LogId<NodeId>>, StoredMembership<NodeId, HostNode>), StorageError<NodeId>> {
+    async fn applied_state(
+        &mut self,
+    ) -> Result<(Option<LogId<NodeId>>, StoredMembership<NodeId, HostNode>), StorageError<NodeId>>
+    {
         todo!()
     }
 
-    async fn apply<I>(&mut self, entries: I) -> Result<Vec<RaftEntryResponse>, StorageError<NodeId>> where I: IntoIterator<Item=Entry<RaftShardConfig>> + OptionalSend, I::IntoIter: OptionalSend {
+    async fn apply<I>(
+        &mut self,
+        entries: I,
+    ) -> Result<Vec<RaftEntryResponse>, StorageError<NodeId>>
+    where
+        I: IntoIterator<Item = Entry<RaftShardConfig>> + OptionalSend,
+        I::IntoIter: OptionalSend, {
         todo!()
     }
 
@@ -113,20 +150,28 @@ impl RaftStateMachine<RaftShardConfig> for RaftShard {
         todo!()
     }
 
-    async fn begin_receiving_snapshot(&mut self) -> Result<Box<<RaftShardConfig as RaftTypeConfig>::SnapshotData>, StorageError<NodeId>> {
+    async fn begin_receiving_snapshot(
+        &mut self,
+    ) -> Result<Box<<RaftShardConfig as RaftTypeConfig>::SnapshotData>, StorageError<NodeId>> {
         todo!()
     }
 
-    async fn install_snapshot(&mut self, meta: &SnapshotMeta<NodeId, HostNode>, snapshot: Box<<RaftShardConfig as RaftTypeConfig>::SnapshotData>) -> Result<(), StorageError<NodeId>> {
+    async fn install_snapshot(
+        &mut self,
+        meta: &SnapshotMeta<NodeId, HostNode>,
+        snapshot: Box<<RaftShardConfig as RaftTypeConfig>::SnapshotData>,
+    ) -> Result<(), StorageError<NodeId>> {
         todo!()
     }
 
-    async fn get_current_snapshot(&mut self) -> Result<Option<Snapshot<RaftShardConfig>>, StorageError<NodeId>> {
+    async fn get_current_snapshot(
+        &mut self,
+    ) -> Result<Option<Snapshot<RaftShardConfig>>, StorageError<NodeId>> {
         todo!()
     }
 }
 
-
+#[allow(unused)]
 #[async_trait]
 impl RaftSnapshotBuilder<RaftShardConfig> for RaftShard {
     async fn build_snapshot(&mut self) -> Result<Snapshot<RaftShardConfig>, StorageError<NodeId>> {
@@ -134,9 +179,13 @@ impl RaftSnapshotBuilder<RaftShardConfig> for RaftShard {
     }
 }
 
+#[allow(unused)]
 #[async_trait]
 impl RaftLogReader<RaftShardConfig> for RaftShard {
-    async fn try_get_log_entries<RB: RangeBounds<u64> + Clone + Debug + Send + Sync>(&mut self, _range: RB) -> Result<Vec<Entry<RaftShardConfig>>, StorageError<NodeId>> {
+    async fn try_get_log_entries<RB: RangeBounds<u64> + Clone + Debug + Send + Sync>(
+        &mut self,
+        _range: RB,
+    ) -> Result<Vec<Entry<RaftShardConfig>>, StorageError<NodeId>> {
         todo!()
     }
 }
@@ -152,21 +201,34 @@ impl StoreBuilder<RaftShardConfig, RaftShard, RaftShard, TempDir> for RaftShardT
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-    use std::sync::Arc;
+    use std::{
+        env,
+        sync::Arc,
+    };
 
-    use openraft::StorageError;
-    use openraft::testing::Suite;
+    use openraft::{
+        testing::Suite,
+        StorageError,
+    };
     use rand::RngCore;
 
-    use crate::storage::memcache::WriteBackCache;
-    use crate::storage::raft::{RaftShard, RaftShardTestBuilder};
-    use crate::typedef::NodeId;
+    use crate::{
+        storage::{
+            memcache::WriteBackCache,
+            raft::{
+                RaftShard,
+                RaftShardTestBuilder,
+            },
+        },
+        typedef::NodeId,
+    };
 
     #[test]
     fn test_raft_shard_compliance() -> Result<(), StorageError<NodeId>> {
         let shard_id = rand::thread_rng().next_u64();
-        let wbc = Arc::new(WriteBackCache::new(env::temp_dir().to_str().unwrap().to_string()));
+        let wbc = Arc::new(WriteBackCache::new(
+            env::temp_dir().to_str().unwrap().to_string(),
+        ));
 
         let raft_storage = RaftShard::new(shard_id, wbc);
 

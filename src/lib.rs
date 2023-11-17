@@ -17,6 +17,6 @@
  */
 
 mod network;
-mod typedef;
 pub mod storage;
+mod typedef;
 pub mod utils;

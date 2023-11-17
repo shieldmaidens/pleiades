@@ -16,17 +16,36 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::fmt::Error;
-use std::io;
+use std::{
+    fmt::Error,
+    io,
+};
 
-use openraft::Entry;
+use nova_api::raft::v1::{
+    ColumnFamilyDescriptor,
+    KeyValuePair,
+    LogId,
+    LogState,
+    MetaKeyValuePair,
+    MetaLogId,
+    MetaVote,
+    RaftEntryResponse,
+    SnapshotMetadata,
+    StoredMembership,
+    Vote,
+};
+use openraft::{
+    Entry,
+    OptionalSend,
+    RaftTypeConfig,
+    Snapshot,
+};
 use thiserror::Error;
-
-use nova_api::raft::v1::{ColumnFamilyDescriptor, KeyValuePair, LogState, MetaKeyValuePair, MetaLogId, MetaVote, Vote};
 
 use crate::typedef::RaftShardConfig;
 
 pub mod db;
+mod encoding;
 pub mod memcache;
 pub mod raft;
 
@@ -38,9 +57,11 @@ pub enum StorageError {
     #[error("shard id not found")]
     MissingShardId,
     #[error("meta key value store error")]
-    MetaKeyValueStoreError(MetaKeyValueStoreError),
+    KeyValueStoreError(MetaKeyValueStoreError),
     #[error("raft log storage error")]
-    MetaRaftLogStorageError(MetaRaftLogStorageError),
+    RaftLogStorageError(MetaRaftLogStorageError),
+    #[error("snapshot builder error")]
+    RaftSnapshotBuilderError(MetaRaftSnapshotBuilderError),
     #[error("meta cache error, {0}")]
     MetaCacheError(MetaCacheError),
     #[error("encoder error, {0}")]
@@ -51,6 +72,8 @@ pub enum StorageError {
     DiskEngineError(rocksdb::Error),
     #[error("io error, {0}")]
     IoError(io::Error),
+    #[error("missing shard column family {0} in rocks")]
+    MissingColumnFamily(u64),
 }
 
 #[derive(Error, Debug)]
@@ -67,11 +90,10 @@ pub enum MetaKeyValueStoreError {
     MissingKeyValuePair,
     #[error("key length is zero")]
     ZeroLengthKey,
-    #[error("missing shard column family {0} in rocks")]
-    MissingColumnFamily(u64),
 }
 
-// todo (sienna): I think the the results should be boxed, but I'm not sure. figure this out later
+// todo (sienna): I think the the results should be boxed, but I'm not sure.
+// figure this out later
 pub trait MetaKeyValueStore {
     /// Fetches a key from the local disk storage.
     fn get(&self, key: &MetaKeyValuePair) -> Result<KeyValuePair, StorageError>;
@@ -88,19 +110,58 @@ pub trait ColumnFamilyEncoding {
     fn decode(&self, key: Vec<u8>) -> Result<ColumnFamilyDescriptor, Error>;
 }
 
-/// Used for state machine implementation
+/// Used for raft log storage implementation
 pub trait MetaRaftLogStorage {
-    fn get_log_state(&mut self) -> Result<LogState, StorageError>;
+    fn get_log_state(&mut self, shard_id: u64) -> Result<LogState, StorageError>;
 
     fn save_vote(&self, vote: &MetaVote) -> Result<(), StorageError>;
 
     fn read_vote(&mut self, shard_id: u64) -> Result<Option<Vote>, StorageError>;
 
-    fn append<I>(&mut self, shard_id: u64, entries: I) -> Result<(), StorageError> where I: IntoIterator<Item=Entry<RaftShardConfig>> + Send;
+    fn append<I>(&mut self, shard_id: u64, entries: I) -> Result<(), StorageError>
+    where
+        I: IntoIterator<Item = Entry<RaftShardConfig>> + Send;
 
     fn truncate(&mut self, log_id: &MetaLogId) -> Result<(), StorageError>;
 
     fn purge(&mut self, log_id: &MetaLogId) -> Result<(), StorageError>;
+}
+
+pub trait MetaSnapshotBuilder {
+    fn build_snapshot(&mut self, shard_id: u64) -> Result<Snapshot<RaftShardConfig>, StorageError>;
+}
+
+pub trait MetaRaftStateMachine {
+    fn applied_state(
+        &mut self,
+        shard_id: u64,
+    ) -> Result<(Option<LogId>, StoredMembership), StorageError>;
+
+    fn apply<I>(
+        &mut self,
+        shard_id: u64,
+        entries: I,
+    ) -> Result<Vec<RaftEntryResponse>, StorageError>
+    where
+        I: IntoIterator<Item = Entry<RaftShardConfig>> + OptionalSend,
+        I::IntoIter: OptionalSend;
+
+    fn begin_receiving_snapshot(
+        &mut self,
+        shard_id: u64,
+    ) -> Result<Box<<RaftShardConfig as RaftTypeConfig>::SnapshotData>, StorageError>;
+
+    fn install_snapshot(
+        &mut self,
+        shard_id: u64,
+        meta: &SnapshotMetadata,
+        snapshot: Box<<RaftShardConfig as RaftTypeConfig>::SnapshotData>,
+    ) -> Result<(), StorageError>;
+
+    fn get_current_snapshot(
+        &mut self,
+        shard_id: u64,
+    ) -> Result<Option<Snapshot<RaftShardConfig>>, StorageError>;
 }
 
 #[derive(Error, Debug)]
@@ -121,4 +182,12 @@ pub enum MetaRaftLogStorageError {
     FailedTruncation(u64, &'static str),
     #[error("failed to purge raft log for shard id {0}, {1}")]
     FailedPurge(u64, &'static str),
+}
+
+#[derive(Error, Debug)]
+pub enum MetaRaftSnapshotBuilderError {
+    #[error("{0}")]
+    GeneralSnapshotError(String),
+    #[error("{0}")]
+    LastKnownUpdateError(String),
 }

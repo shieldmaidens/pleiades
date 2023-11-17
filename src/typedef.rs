@@ -17,9 +17,12 @@
  */
 
 use std::io::Cursor;
-use openraft::Entry;
 
-use nova_api::raft::v1::{RaftEntryRequest, RaftEntryResponse};
+use nova_api::raft::v1::{
+    RaftEntryRequest,
+    RaftEntryResponse,
+};
+use openraft::Entry;
 
 use crate::network;
 

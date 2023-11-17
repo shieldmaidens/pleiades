@@ -18,7 +18,7 @@
 
 use serde::{
     Deserialize,
-    Serialize
+    Serialize,
 };
 
 mod raft;
@@ -34,7 +34,7 @@ impl HostNode {}
 impl Default for HostNode {
     fn default() -> Self {
         Self {
-            addr: "".to_string()
+            addr: "".to_string(),
         }
     }
 }
